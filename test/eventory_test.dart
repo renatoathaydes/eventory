@@ -75,4 +75,116 @@ void main() {
       expect(adam, equals(expectedAdam));
     });
   });
+
+  group('MemoryEventSink with time-spaced events', () {
+    InMemoryEventSink sink;
+    setUp(() {
+      sink = InMemoryEventSink();
+
+      // given some events
+      sink.add(Event('brazil', const Attribute([#population]), 90e6,
+          DateTime.parse('1970-01-01')));
+      sink.add(Event('brazil', const Attribute([#population]), 100e6,
+          DateTime.parse('1972-03-15')));
+      sink.add(Event('brazil', const Attribute([#population]), 150e6,
+          DateTime.parse('1990-06-02')));
+      sink.add(Event('brazil', const Attribute([#population]), 200e6,
+          DateTime.parse('2012-01-02')));
+      sink.add(Event('sweden', const Attribute([#population]), 7e6,
+          DateTime.parse('1955-01-01')));
+      sink.add(Event('sweden', const Attribute([#population]), 8e6,
+          DateTime.parse('1970-01-01')));
+      sink.add(Event('sweden', const Attribute([#population]), 9e6,
+          DateTime.parse('2005-06-01')));
+      sink.add(Event('sweden', const Attribute([#population]), 10e6,
+          DateTime.parse('2019-01-01')));
+
+      sink.add(Event('sweden', const Attribute([#languages]),
+          {'swedish', 'sami'}, DateTime.parse('0912-01-01')));
+      sink.add(Event('brazil', const Attribute([#languages]), {'portuguese'},
+          DateTime.parse('1500-01-01')));
+    });
+
+    test('can use simple event lookup at different points in time', () {
+      expect(sink.getValue('brazil', Attribute([#population])), equals(200e6));
+      expect(
+          sink.getValue(
+              'brazil', Attribute([#population]), DateTime.parse('1970-06-01')),
+          equals(90e6));
+      expect(
+          sink.getValue(
+              'brazil', Attribute([#population]), DateTime.parse('1990-06-01')),
+          equals(100e6));
+      expect(
+          sink.getValue(
+              'brazil', Attribute([#population]), DateTime.parse('1990-06-05')),
+          equals(150e6));
+      expect(
+          sink.getValue(
+              'sweden', Attribute([#population]), DateTime.parse('1960-01-01')),
+          equals(7e6));
+
+      expect(
+          sink.getValue('brazil', const Attribute([#population]),
+              DateTime.parse('1930-01-01')),
+          isNull);
+      expect(
+          sink.getValue('sweden', const Attribute([#population]),
+              DateTime.parse('1930-01-01')),
+          isNull);
+      expect(sink.getValue('brazil', const Attribute([#number])), isNull);
+      expect(sink.getValue('sweden', const Attribute([#address])), isNull);
+      expect(
+          sink.getValue('australia', const Attribute([#population])), isNull);
+      expect(sink.getValue('sweden', const Attribute([#xxx, #yyy])), isNull);
+    });
+
+    test('can re-constitute a full entity at different points in time', () {
+      final expectedBrazilIn1200 = <Attribute, dynamic>{};
+
+      final expectedBrazilIn1971 = {
+        const Attribute([#population]): 90e6,
+        const Attribute([#languages]): {'portuguese'},
+      };
+
+      final expectedBrazilIn2020 = {
+        const Attribute([#population]): 200e6,
+        const Attribute([#languages]): {'portuguese'},
+      };
+
+      final expectedSwedenIn2020 = {
+        const Attribute([#population]): 10e6,
+        const Attribute([#languages]): {'swedish', 'sami'},
+      };
+
+      final expectedSwedenIn1200 = {
+        const Attribute([#languages]): {'swedish', 'sami'},
+      };
+
+      final brazilIn1200 =
+          sink.getEntity('brazil', DateTime.parse('1200-01-01'));
+
+      expect(brazilIn1200, equals(expectedBrazilIn1200));
+
+      final brazilIn1971 =
+          sink.getEntity('brazil', DateTime.parse('1971-01-01'));
+
+      expect(brazilIn1971, equals(expectedBrazilIn1971));
+
+      final brazilIn2020 =
+          sink.getEntity('brazil', DateTime.parse('2020-01-01'));
+
+      expect(brazilIn2020, equals(expectedBrazilIn2020));
+
+      final swedenIn2020 =
+          sink.getEntity('sweden', DateTime.parse('2020-01-01'));
+
+      expect(swedenIn2020, equals(expectedSwedenIn2020));
+
+      final swedenIn1200 =
+          sink.getEntity('sweden', DateTime.parse('1200-01-01'));
+
+      expect(swedenIn1200, equals(expectedSwedenIn1200));
+    });
+  });
 }
