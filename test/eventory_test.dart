@@ -2,7 +2,7 @@ import 'package:eventory/eventory.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('MemoryEventSink with a few events', () {
+  group('MemoryEventSink with a few immediate events', () {
     InMemoryEventSink sink;
     setUp(() {
       sink = InMemoryEventSink();
@@ -35,7 +35,7 @@ void main() {
       expect(sink.getValue('other', const Attribute([#xxx])), isNull);
     });
 
-    test('can see updates', () {
+    test('can see updates in event lookup', () {
       expect(sink.getValue('joe', Attribute([#address, #street])),
           equals('Medium Street'));
       expect(sink.getValue('joe', Attribute([#address, #street_number])),
@@ -44,6 +44,35 @@ void main() {
           equals('Low Street'));
       expect(sink.getValue('mary', const Attribute([#address, #street_number])),
           equals(423));
+    });
+    test('can re-constitute a full entity', () {
+      final expectedJoe = {
+        const Attribute([#age]): 24,
+        const Attribute([#address, #street]): 'Medium Street',
+        const Attribute([#address, #street_number]): 12,
+      };
+
+      final joe = sink.getEntity('joe');
+
+      expect(joe, equals(expectedJoe));
+
+      final expectedMary = {
+        const Attribute([#age]): 26,
+        const Attribute([#address, #street]): 'Low Street',
+        const Attribute([#address, #street_number]): 423,
+      };
+
+      final mary = sink.getEntity('mary');
+
+      expect(mary, equals(expectedMary));
+
+      final expectedAdam = {
+        const Attribute([#age]): 53,
+      };
+
+      final adam = sink.getEntity('adam');
+
+      expect(adam, equals(expectedAdam));
     });
   });
 }

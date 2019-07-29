@@ -16,6 +16,8 @@ class EventList {
     _events.putIfAbsent(event.instant, () => []).add(event);
   }
 
+  Iterable<Event> get all => _events.values.expand((e) => e);
+
   Event findEvent({Attribute attribute, DateTime instant}) {
     instant ??= DateTime.now();
     final attributeMatches = _attributeLookupFunction(attribute);
