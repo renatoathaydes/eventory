@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
@@ -55,7 +57,9 @@ class Event {
 /// A [Sink] of [Event]s.
 ///
 /// It is used to publish events.
-abstract class EventSink extends Sink<Event> {}
+abstract class EventSink {
+  FutureOr add(Event event);
+}
 
 /// A source of [Event]s.
 ///
