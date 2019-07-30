@@ -2,189 +2,197 @@ import 'package:eventory/eventory.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('MemoryEventSink with a few immediate events', () {
-    InMemoryEventSink sink;
-    setUp(() {
-      sink = InMemoryEventSink();
+  final List<EventSource> eventSources = [
+    InMemoryEventSink(),
+  ];
 
-      // given some events
-      sink.add(Event('joe', const Attribute([#age]), 24));
-      sink.add(Event('mary', const Attribute([#age]), 26));
-      sink.add(Event('adam', const Attribute([#age]), 53));
-      sink.add(
-          Event('joe', const Attribute([#address, #street]), 'High Street'));
-      sink.add(Event('joe', const Attribute([#address, #street_number]), 32));
-      sink.add(
-          Event('mary', const Attribute([#address, #street]), 'Low Street'));
-      sink.add(Event('mary', const Attribute([#address, #street_number]), 423));
+  for (final source in eventSources) {
+    group('$source with a few immediate events', () {
+      EventSink sink;
+      
+      setUp(() {
+        sink = source as EventSink;
 
-      // updates Joe's address
-      sink.add(
-          Event('joe', const Attribute([#address, #street]), 'Medium Street'));
-      sink.add(Event('joe', const Attribute([#address, #street_number]), 12));
+        // given some events
+        sink.add(Event('joe', const Attribute([#age]), 24));
+        sink.add(Event('mary', const Attribute([#age]), 26));
+        sink.add(Event('adam', const Attribute([#age]), 53));
+        sink.add(
+            Event('joe', const Attribute([#address, #street]), 'High Street'));
+        sink.add(Event('joe', const Attribute([#address, #street_number]), 32));
+        sink.add(
+            Event('mary', const Attribute([#address, #street]), 'Low Street'));
+        sink.add(Event('mary', const Attribute([#address, #street_number]), 423));
+
+        // updates Joe's address
+        sink.add(
+            Event('joe', const Attribute([#address, #street]), 'Medium Street'));
+        sink.add(Event('joe', const Attribute([#address, #street_number]), 12));
+      });
+
+      test('can use simple event lookup', () {
+        expect(source.getValue('joe', Attribute([#age])), equals(24));
+        expect(source.getValue('mary', const Attribute([#age])), equals(26));
+        expect(source.getValue('adam', const Attribute([#age])), equals(53));
+
+        expect(source.getValue('joe', const Attribute([#number])), isNull);
+        expect(source.getValue('joe', const Attribute([#address])), isNull);
+        expect(source.getValue('other', const Attribute([#age])), isNull);
+        expect(source.getValue('other', const Attribute([#xxx])), isNull);
+      });
+
+      test('can see updates in event lookup', () {
+        expect(source.getValue('joe', Attribute([#address, #street])),
+            equals('Medium Street'));
+        expect(source.getValue('joe', Attribute([#address, #street_number])),
+            equals(12));
+        expect(source.getValue('mary', const Attribute([#address, #street])),
+            equals('Low Street'));
+        expect(source.getValue('mary', const Attribute([#address, #street_number])),
+            equals(423));
+      });
+      test('can re-constitute a full entity', () {
+        final expectedJoe = {
+          const Attribute([#age]): 24,
+          const Attribute([#address, #street]): 'Medium Street',
+          const Attribute([#address, #street_number]): 12,
+        };
+
+        final joe = source.getEntity('joe');
+
+        expect(joe, equals(expectedJoe));
+
+        final expectedMary = {
+          const Attribute([#age]): 26,
+          const Attribute([#address, #street]): 'Low Street',
+          const Attribute([#address, #street_number]): 423,
+        };
+
+        final mary = source.getEntity('mary');
+
+        expect(mary, equals(expectedMary));
+
+        final expectedAdam = {
+          const Attribute([#age]): 53,
+        };
+
+        final adam = source.getEntity('adam');
+
+        expect(adam, equals(expectedAdam));
+      });
     });
 
-    test('can use simple event lookup', () {
-      expect(sink.getValue('joe', Attribute([#age])), equals(24));
-      expect(sink.getValue('mary', const Attribute([#age])), equals(26));
-      expect(sink.getValue('adam', const Attribute([#age])), equals(53));
+    group('$source with time-spaced events', () {
+      EventSink sink;
 
-      expect(sink.getValue('joe', const Attribute([#number])), isNull);
-      expect(sink.getValue('joe', const Attribute([#address])), isNull);
-      expect(sink.getValue('other', const Attribute([#age])), isNull);
-      expect(sink.getValue('other', const Attribute([#xxx])), isNull);
-    });
+      setUp(() {
+        sink = source as EventSink;
 
-    test('can see updates in event lookup', () {
-      expect(sink.getValue('joe', Attribute([#address, #street])),
-          equals('Medium Street'));
-      expect(sink.getValue('joe', Attribute([#address, #street_number])),
-          equals(12));
-      expect(sink.getValue('mary', const Attribute([#address, #street])),
-          equals('Low Street'));
-      expect(sink.getValue('mary', const Attribute([#address, #street_number])),
-          equals(423));
-    });
-    test('can re-constitute a full entity', () {
-      final expectedJoe = {
-        const Attribute([#age]): 24,
-        const Attribute([#address, #street]): 'Medium Street',
-        const Attribute([#address, #street_number]): 12,
-      };
+        // given some events
+        sink.add(Event('brazil', const Attribute([#population]), 90e6,
+            DateTime.parse('1970-01-01')));
+        sink.add(Event('brazil', const Attribute([#population]), 100e6,
+            DateTime.parse('1972-03-15')));
+        sink.add(Event('brazil', const Attribute([#population]), 150e6,
+            DateTime.parse('1990-06-02')));
+        sink.add(Event('brazil', const Attribute([#population]), 200e6,
+            DateTime.parse('2012-01-02')));
+        sink.add(Event('sweden', const Attribute([#population]), 7e6,
+            DateTime.parse('1955-01-01')));
+        sink.add(Event('sweden', const Attribute([#population]), 8e6,
+            DateTime.parse('1970-01-01')));
+        sink.add(Event('sweden', const Attribute([#population]), 9e6,
+            DateTime.parse('2005-06-01')));
+        sink.add(Event('sweden', const Attribute([#population]), 10e6,
+            DateTime.parse('2019-01-01')));
 
-      final joe = sink.getEntity('joe');
+        sink.add(Event('sweden', const Attribute([#languages]),
+            {'swedish', 'sami'}, DateTime.parse('0912-01-01')));
+        sink.add(Event('brazil', const Attribute([#languages]), {'portuguese'},
+            DateTime.parse('1500-01-01')));
+      });
 
-      expect(joe, equals(expectedJoe));
+      test('can use simple event lookup at different points in time', () {
+        expect(source.getValue('brazil', Attribute([#population])), equals(200e6));
+        expect(
+            source.getValue(
+                'brazil', Attribute([#population]), DateTime.parse('1970-06-01')),
+            equals(90e6));
+        expect(
+            source.getValue(
+                'brazil', Attribute([#population]), DateTime.parse('1990-06-01')),
+            equals(100e6));
+        expect(
+            source.getValue(
+                'brazil', Attribute([#population]), DateTime.parse('1990-06-05')),
+            equals(150e6));
+        expect(
+            source.getValue(
+                'sweden', Attribute([#population]), DateTime.parse('1960-01-01')),
+            equals(7e6));
 
-      final expectedMary = {
-        const Attribute([#age]): 26,
-        const Attribute([#address, #street]): 'Low Street',
-        const Attribute([#address, #street_number]): 423,
-      };
+        expect(
+            source.getValue('brazil', const Attribute([#population]),
+                DateTime.parse('1930-01-01')),
+            isNull);
+        expect(
+            source.getValue('sweden', const Attribute([#population]),
+                DateTime.parse('1930-01-01')),
+            isNull);
+        expect(source.getValue('brazil', const Attribute([#number])), isNull);
+        expect(source.getValue('sweden', const Attribute([#address])), isNull);
+        expect(
+            source.getValue('australia', const Attribute([#population])), isNull);
+        expect(source.getValue('sweden', const Attribute([#xxx, #yyy])), isNull);
+      });
 
-      final mary = sink.getEntity('mary');
+      test('can re-constitute a full entity at different points in time', () {
+        final expectedBrazilIn1200 = <Attribute, dynamic>{};
 
-      expect(mary, equals(expectedMary));
+        final expectedBrazilIn1971 = {
+          const Attribute([#population]): 90e6,
+          const Attribute([#languages]): {'portuguese'},
+        };
 
-      final expectedAdam = {
-        const Attribute([#age]): 53,
-      };
+        final expectedBrazilIn2020 = {
+          const Attribute([#population]): 200e6,
+          const Attribute([#languages]): {'portuguese'},
+        };
 
-      final adam = sink.getEntity('adam');
+        final expectedSwedenIn2020 = {
+          const Attribute([#population]): 10e6,
+          const Attribute([#languages]): {'swedish', 'sami'},
+        };
 
-      expect(adam, equals(expectedAdam));
-    });
-  });
+        final expectedSwedenIn1200 = {
+          const Attribute([#languages]): {'swedish', 'sami'},
+        };
 
-  group('MemoryEventSink with time-spaced events', () {
-    InMemoryEventSink sink;
-    setUp(() {
-      sink = InMemoryEventSink();
+        final brazilIn1200 =
+        source.getEntity('brazil', DateTime.parse('1200-01-01'));
 
-      // given some events
-      sink.add(Event('brazil', const Attribute([#population]), 90e6,
-          DateTime.parse('1970-01-01')));
-      sink.add(Event('brazil', const Attribute([#population]), 100e6,
-          DateTime.parse('1972-03-15')));
-      sink.add(Event('brazil', const Attribute([#population]), 150e6,
-          DateTime.parse('1990-06-02')));
-      sink.add(Event('brazil', const Attribute([#population]), 200e6,
-          DateTime.parse('2012-01-02')));
-      sink.add(Event('sweden', const Attribute([#population]), 7e6,
-          DateTime.parse('1955-01-01')));
-      sink.add(Event('sweden', const Attribute([#population]), 8e6,
-          DateTime.parse('1970-01-01')));
-      sink.add(Event('sweden', const Attribute([#population]), 9e6,
-          DateTime.parse('2005-06-01')));
-      sink.add(Event('sweden', const Attribute([#population]), 10e6,
-          DateTime.parse('2019-01-01')));
+        expect(brazilIn1200, equals(expectedBrazilIn1200));
 
-      sink.add(Event('sweden', const Attribute([#languages]),
-          {'swedish', 'sami'}, DateTime.parse('0912-01-01')));
-      sink.add(Event('brazil', const Attribute([#languages]), {'portuguese'},
-          DateTime.parse('1500-01-01')));
-    });
+        final brazilIn1971 =
+        source.getEntity('brazil', DateTime.parse('1971-01-01'));
 
-    test('can use simple event lookup at different points in time', () {
-      expect(sink.getValue('brazil', Attribute([#population])), equals(200e6));
-      expect(
-          sink.getValue(
-              'brazil', Attribute([#population]), DateTime.parse('1970-06-01')),
-          equals(90e6));
-      expect(
-          sink.getValue(
-              'brazil', Attribute([#population]), DateTime.parse('1990-06-01')),
-          equals(100e6));
-      expect(
-          sink.getValue(
-              'brazil', Attribute([#population]), DateTime.parse('1990-06-05')),
-          equals(150e6));
-      expect(
-          sink.getValue(
-              'sweden', Attribute([#population]), DateTime.parse('1960-01-01')),
-          equals(7e6));
+        expect(brazilIn1971, equals(expectedBrazilIn1971));
 
-      expect(
-          sink.getValue('brazil', const Attribute([#population]),
-              DateTime.parse('1930-01-01')),
-          isNull);
-      expect(
-          sink.getValue('sweden', const Attribute([#population]),
-              DateTime.parse('1930-01-01')),
-          isNull);
-      expect(sink.getValue('brazil', const Attribute([#number])), isNull);
-      expect(sink.getValue('sweden', const Attribute([#address])), isNull);
-      expect(
-          sink.getValue('australia', const Attribute([#population])), isNull);
-      expect(sink.getValue('sweden', const Attribute([#xxx, #yyy])), isNull);
-    });
+        final brazilIn2020 =
+        source.getEntity('brazil', DateTime.parse('2020-01-01'));
 
-    test('can re-constitute a full entity at different points in time', () {
-      final expectedBrazilIn1200 = <Attribute, dynamic>{};
+        expect(brazilIn2020, equals(expectedBrazilIn2020));
 
-      final expectedBrazilIn1971 = {
-        const Attribute([#population]): 90e6,
-        const Attribute([#languages]): {'portuguese'},
-      };
+        final swedenIn2020 =
+        source.getEntity('sweden', DateTime.parse('2020-01-01'));
 
-      final expectedBrazilIn2020 = {
-        const Attribute([#population]): 200e6,
-        const Attribute([#languages]): {'portuguese'},
-      };
+        expect(swedenIn2020, equals(expectedSwedenIn2020));
 
-      final expectedSwedenIn2020 = {
-        const Attribute([#population]): 10e6,
-        const Attribute([#languages]): {'swedish', 'sami'},
-      };
+        final swedenIn1200 =
+        source.getEntity('sweden', DateTime.parse('1200-01-01'));
 
-      final expectedSwedenIn1200 = {
-        const Attribute([#languages]): {'swedish', 'sami'},
-      };
-
-      final brazilIn1200 =
-          sink.getEntity('brazil', DateTime.parse('1200-01-01'));
-
-      expect(brazilIn1200, equals(expectedBrazilIn1200));
-
-      final brazilIn1971 =
-          sink.getEntity('brazil', DateTime.parse('1971-01-01'));
-
-      expect(brazilIn1971, equals(expectedBrazilIn1971));
-
-      final brazilIn2020 =
-          sink.getEntity('brazil', DateTime.parse('2020-01-01'));
-
-      expect(brazilIn2020, equals(expectedBrazilIn2020));
-
-      final swedenIn2020 =
-          sink.getEntity('sweden', DateTime.parse('2020-01-01'));
-
-      expect(swedenIn2020, equals(expectedSwedenIn2020));
-
-      final swedenIn1200 =
-          sink.getEntity('sweden', DateTime.parse('1200-01-01'));
-
-      expect(swedenIn1200, equals(expectedSwedenIn1200));
-    });
-  });
+        expect(swedenIn1200, equals(expectedSwedenIn1200));
+      });
+    }); 
+  }
 }
