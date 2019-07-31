@@ -10,9 +10,25 @@ import 'package:meta/meta.dart';
 @immutable
 class Attribute {
   /// Path of an attribute.
+  ///
+  /// Each path component must not contain the new-line or '/' characters.
   final List<String> path;
 
-  const Attribute(this.path);
+  String get pathString => path.join('/');
+
+  /// Create an [Attribute] without checking the given path for invalid
+  /// characters.
+  const Attribute.unchecked(this.path);
+
+  /// Create an [Attribute] with the given path.
+  ///
+  /// Throws [ArgumentError] if the path is invalid.
+  Attribute(List<String> path) : path = path {
+    if (path.contains('[/|\n|\r]')) {
+      throw ArgumentError.value(
+          path, 'path', "Path must not contain new-line or '/' characters");
+    }
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -26,7 +42,7 @@ class Attribute {
   bool get isEmpty => path.isEmpty;
 
   @override
-  String toString() => 'Attribute{${path.join('#')}';
+  String toString() => 'Attribute{${pathString}';
 }
 
 /// Event is the most basic element of knowledge about a certain domain which
