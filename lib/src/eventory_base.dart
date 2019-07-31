@@ -74,7 +74,19 @@ class Event {
 ///
 /// It is used to publish events.
 abstract class EventSink {
+  /// Add an event to this sink.
+  ///
+  /// Returns a [FutureOr] to allow for possibly async ack on writes.
   FutureOr add(Event event);
+
+  /// Add a batch of events to this sink.
+  ///
+  /// Returns a [FutureOr] to allow for possibly async ack on writes.
+  FutureOr addBatch(List<Event> events) async {
+    for (var event in events) {
+      await add(event);
+    }
+  }
 }
 
 /// A source of [Event]s.

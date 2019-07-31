@@ -3,54 +3,45 @@ import 'dart:io';
 
 import 'package:eventory/eventory.dart';
 
+/// A Function that encodes an [Event]'s value to an [Object] which can be
+/// persisted with [jsonEncode].
+///
+/// It must not contain new-line characters because each line in the file used
+/// for persistence is expected to represent a single [Event] or batch of events.
 typedef EventValueEncoder = Object Function(Object);
 
-Object _identity(Object value) => value;
+T _identity<T>(T value) => value;
 
-class FileEventSink extends InMemoryEventSink {
+class FileEventSink extends EventSink {
   final File file;
-  final EventValueEncoder encoder;
+  final EventValueEncoder encodeValue;
 
-  FileEventSink(this.file, {this.encoder = _identity});
+  FileEventSink(this.file, {this.encodeValue = _identity});
 
-  Future<void> init() async {
-    final handle = await file
-        .openRead()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
+  List _encodedList(Event event) => [
+        event.instant.toIso8601String(),
+        event.key,
+        event.attribute.path,
+        encodeValue(event.value)
+      ];
 
-    await for (final line in handle) {
-      await add(_parseLine(line));
-    }
+  String _removeEndChars(String s) => s.substring(1, s.length - 1);
+
+  Future<void> _writeln(String line) async {
+    await file.writeAsString("$line\n", mode: FileMode.append, flush: true);
   }
-
-  Event _parseLine(String line) {}
 
   @override
   Future<void> add(Event event) async {
-    super.add(event);
-    final jsonObject = [
-      event.instant.toIso8601String(),
-      event.key,
-      event.attribute.path,
-      encoder(event.value)
-    ];
-    final json = jsonEncode(jsonObject);
-    await file.writeAsString("${json.substring(1, json.length - 1)}\n");
+    final json = jsonEncode(_encodedList(event));
+    await _writeln(_removeEndChars(json));
   }
 
   @override
-  void close() {
-    // no op
-  }
-
-  @override
-  dynamic getValue(String key, Attribute attribute, [DateTime instant]) {
-    return super.getValue(key, attribute, instant);
-  }
-
-  @override
-  Map<Attribute, dynamic> getEntity(String key, [DateTime instant]) {
-    return super.getEntity(key, instant);
+  Future<void> addBatch(List<Event> events) async {
+    if (events.isEmpty) return;
+    final json = jsonEncode(
+        events.map(_encodedList).expand(_identity).toList(growable: false));
+    await _writeln(json);
   }
 }
