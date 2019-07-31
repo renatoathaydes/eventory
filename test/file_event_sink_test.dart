@@ -15,10 +15,9 @@ void main() {
 
     test('can write simple event', () async {
       await sink.add(Event(
-          'hello', Attribute([#p1, #p2]), 42, DateTime.parse('2010-02-03')));
+          'hello', Attribute(["p1", "p2"]), 42, DateTime.parse('2010-02-03')));
       final fileContents = await sink.file.readAsString();
 
-      // FIXME implement serialization correctly
       expect(fileContents, equals(//
           '"2010-02-03T00:00:00.000","hello",["p1","p2"],42\n'));
     });

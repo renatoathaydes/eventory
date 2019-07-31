@@ -9,24 +9,24 @@ import 'package:meta/meta.dart';
 /// an [Event].
 @immutable
 class Attribute {
-  /// Symbols identifying an attribute.
-  final List<Symbol> _symbols;
+  /// Path of an attribute.
+  final List<String> path;
 
-  const Attribute(this._symbols);
+  const Attribute(this.path);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Attribute &&
-          const ListEquality().equals(this._symbols, other._symbols));
+          const ListEquality().equals(this.path, other.path));
 
   @override
-  int get hashCode => _symbols.hashCode;
+  int get hashCode => path.hashCode;
 
-  bool get isEmpty => _symbols.isEmpty;
+  bool get isEmpty => path.isEmpty;
 
   @override
-  String toString() => 'Attribute{$_symbols}';
+  String toString() => 'Attribute{${path.join('#')}';
 }
 
 /// Event is the most basic element of knowledge about a certain domain which

@@ -32,8 +32,7 @@ class FileEventSink extends InMemoryEventSink {
     final jsonObject = [
       event.instant.toIso8601String(),
       event.key,
-      // TODO serialize properly
-      event.attribute.toString(),
+      event.attribute.path,
       encoder(event.value)
     ];
     final json = jsonEncode(jsonObject);
