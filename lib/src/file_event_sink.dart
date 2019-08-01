@@ -67,8 +67,8 @@ class FileEventSource with EventSource {
   /// Load a [File] into a [FileEventSource].
   ///
   /// Throws a [EventDecodingException] if the contents of the file are invalid.
-  static Future<FileEventSource> load(
-      File file, {EventValueDecoder decodeValue = _identity}) async {
+  static Future<FileEventSource> load(File file,
+      {EventValueDecoder decodeValue = _identity}) async {
     final instance =
         FileEventSource._create(file, decodeValue, InMemoryEventSink());
     await instance._load();
@@ -85,10 +85,11 @@ class FileEventSource with EventSource {
 
   Attribute _decodeAttribute(List list) {
     final path = list.map((item) {
-      if (item is String) {
-        return item;
+      try {
+        return item as String;
+      } catch (e) {
+        throw "item is not a String";
       }
-      throw 'Invalid Attribute component';
     }).toList(growable: false);
     return Attribute(path);
   }

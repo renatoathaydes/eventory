@@ -92,5 +92,45 @@ void main() {
           throwsA(isA<EventDecodingException>()
               .having((e) => e.cause, 'cause', equals('Too many components'))));
     });
+    test('with single event with invalid instant', () {
+      expect(() async {
+        await createEventSource(contents: '"hi","hello",["p1"],42,43');
+      },
+          throwsA(isA<EventDecodingException>().having(
+              (e) => e.cause,
+              'cause',
+              startsWith('Invalid instant component: '
+                  'FormatException: Invalid date format'))));
+    });
+    test('with single event with invalid key', () {
+      expect(() async {
+        await createEventSource(
+            contents: '"2010-02-03T00:00:00.000",234,["p1"],42');
+      },
+          throwsA(isA<EventDecodingException>().having(
+              (e) => e.cause,
+              'cause',
+              equals("Invalid key component: "
+                  "type 'int' is not a subtype of type 'String' in type cast"))));
+    });
+    test('with single event with invalid Attribute (not List)', () {
+      expect(() async {
+        await createEventSource(
+            contents: '"2010-02-03T00:00:00.000","a",41,42');
+      },
+          throwsA(isA<EventDecodingException>().having(
+              (e) => e.cause,
+              'cause',
+              equals("Invalid attribute component: "
+                  "type 'int' is not a subtype of type 'List<dynamic>' in type cast"))));
+    });
+    test('with single event with invalid Attribute (List item)', () {
+      expect(() async {
+        await createEventSource(
+            contents: '"2010-02-03T00:00:00.000","a",[41],42');
+      },
+          throwsA(isA<EventDecodingException>().having((e) => e.cause, 'cause',
+              equals("Invalid attribute component: item is not a String"))));
+    });
   });
 }
