@@ -38,6 +38,7 @@ class FileEventSink extends EventSink {
 
   @override
   Future<void> add(Event event) async {
+    assertNotClosed();
     final json = jsonEncode(_encodedList(event));
     // persist single Event by removing the '[' and ']' from the JSON String
     // as that is reserved for batched Events.
@@ -46,6 +47,7 @@ class FileEventSink extends EventSink {
 
   @override
   Future<void> addBatch(List<Event> events) async {
+    assertNotClosed();
     if (events.isEmpty) return;
     // persist batched Events as a single JSON List where each 4 elements form
     // a single Event.

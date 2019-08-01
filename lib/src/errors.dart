@@ -8,3 +8,10 @@ class EventDecodingException implements Exception {
     return 'EventDecodingException{$cause}';
   }
 }
+
+class ClosedException implements Exception {
+  const ClosedException();
+
+  @override
+  String toString() => 'ClosedException';
+}

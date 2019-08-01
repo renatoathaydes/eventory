@@ -7,12 +7,8 @@ class InMemoryEventSink extends EventSink with EventSource {
 
   @override
   void add(Event event) {
+    assertNotClosed();
     _db.putIfAbsent(event.key, () => EventList()).add(event);
-  }
-
-  @override
-  void close() {
-    // no op
   }
 
   @override

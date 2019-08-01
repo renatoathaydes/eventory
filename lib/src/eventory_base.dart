@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'errors.dart';
 import 'package:meta/meta.dart';
 
 /// Attribute of an entity.
@@ -73,7 +74,9 @@ class Event {
 /// A [Sink] of [Event]s.
 ///
 /// It is used to publish events.
-abstract class EventSink {
+abstract class EventSink extends Sink<Event> {
+  bool _closed = false;
+
   /// Add an event to this sink.
   ///
   /// Returns a [FutureOr] to allow for possibly async ack on writes.
@@ -86,6 +89,21 @@ abstract class EventSink {
     for (var event in events) {
       await add(event);
     }
+  }
+
+  bool get isClosed => _closed;
+
+  @protected
+  void assertNotClosed() {
+    if (isClosed) {
+      throw const ClosedException();
+    }
+  }
+
+  @mustCallSuper
+  @override
+  void close() {
+    _closed = true;
   }
 }
 

@@ -216,5 +216,17 @@ void main() {
         expect(swedenIn1200, equals(expectedSwedenIn1200));
       });
     });
+    group('$source errors', () {
+      EventSink sink;
+      setUp(() {
+        sink = source as EventSink;
+      });
+      test('cannot add Event after closed', () {
+        sink.close();
+        expect(() {
+          sink.add(Event('a', const Attribute.unchecked(['b']), 1));
+        }, throwsA(isA<ClosedException>()));
+      });
+    });
   }
 }
