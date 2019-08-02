@@ -26,4 +26,10 @@ class InMemoryEventSink extends EventSink with EventSource {
     events.forEach((event) => result[event.attribute] = event.value);
     return result;
   }
+
+  @override
+  Stream<Event> get allEvents {
+    return Stream.fromIterable(
+        _db.values.expand((e) => e.all).toList(growable: false));
+  }
 }

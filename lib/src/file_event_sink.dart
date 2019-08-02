@@ -164,4 +164,7 @@ class FileEventSource with EventSource {
   dynamic getValue(String key, Attribute attribute, [DateTime instant]) {
     return _delegate.getValue(key, attribute, instant);
   }
+
+  @override
+  Stream<Event> get allEvents => _delegate.allEvents;
 }

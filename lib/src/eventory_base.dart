@@ -1,8 +1,9 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'errors.dart';
 import 'package:meta/meta.dart';
+
+import 'errors.dart';
 
 /// Attribute of an entity.
 ///
@@ -66,6 +67,20 @@ class Event {
       : instant = instant ?? DateTime.now();
 
   @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Event &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          attribute == other.attribute &&
+          value == other.value &&
+          instant == other.instant;
+
+  @override
+  int get hashCode =>
+      key.hashCode ^ attribute.hashCode ^ value.hashCode ^ instant.hashCode;
+
+  @override
   String toString() {
     return 'Event{key: $key, attribute: $attribute, value: $value, instant: $instant}';
   }
@@ -111,6 +126,10 @@ abstract class EventSink extends Sink<Event> {
 ///
 /// It is used to retrieve events.
 mixin EventSource {
+  /// All [Event]s known to this [EventSource] at the time this property
+  /// is accessed.
+  Stream<Event> get allEvents;
+
   /// Get the value for an [Attribute] of an entity with the given key,
   /// at the given instant.
   ///

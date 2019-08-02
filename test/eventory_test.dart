@@ -1,17 +1,35 @@
 import 'package:eventory/eventory.dart';
 import 'package:test/test.dart';
 
+mixin _TestSubject {
+  EventSink createEventSink();
+
+  EventSource createEventSource(EventSink sink);
+}
+
+class _InMemoryTestSubject with _TestSubject {
+  @override
+  EventSink createEventSink() => InMemoryEventSink();
+
+  @override
+  EventSource createEventSource(EventSink sink) => sink as EventSource;
+
+  @override
+  String toString() => 'InMemoryTestSubject';
+}
+
 void main() {
-  final List<EventSource> eventSources = [
-    InMemoryEventSink(),
+  final List<_TestSubject> testSubjects = [
+    _InMemoryTestSubject(),
   ];
 
-  for (final source in eventSources) {
-    group('$source with a few immediate events', () {
+  for (final testSubject in testSubjects) {
+    group('$testSubject with a few immediate events', () {
       EventSink sink;
+      EventSource source;
 
       setUp(() {
-        sink = source as EventSink;
+        sink = testSubject.createEventSink();
 
         // given some events
         sink.add(Event('joe', const Attribute.unchecked(["age"]), 24));
@@ -31,6 +49,8 @@ void main() {
             'Medium Street'));
         sink.add(Event('joe',
             const Attribute.unchecked(["address", "street_number"]), 12));
+
+        source = testSubject.createEventSource(sink);
       });
 
       test('can use simple event lookup', () {
@@ -95,11 +115,12 @@ void main() {
       });
     });
 
-    group('$source with time-spaced events', () {
+    group('$testSubject with time-spaced events', () {
       EventSink sink;
+      EventSource source;
 
       setUp(() {
-        sink = source as EventSink;
+        sink = testSubject.createEventSink();
 
         // given some events
         sink.add(Event('brazil', const Attribute.unchecked(["population"]),
@@ -123,6 +144,8 @@ void main() {
             {'swedish', 'sami'}, DateTime.parse('0912-01-01')));
         sink.add(Event('brazil', const Attribute.unchecked(["languages"]),
             {'portuguese'}, DateTime.parse('1500-01-01')));
+
+        source = testSubject.createEventSource(sink);
       });
 
       test('can use simple event lookup at different points in time', () {
@@ -216,16 +239,39 @@ void main() {
         expect(swedenIn1200, equals(expectedSwedenIn1200));
       });
     });
-    group('$source errors', () {
+    group('$testSubject errors', () {
       EventSink sink;
       setUp(() {
-        sink = source as EventSink;
+        sink = testSubject.createEventSink();
       });
       test('cannot add Event after closed', () {
         sink.close();
         expect(() {
           sink.add(Event('a', const Attribute.unchecked(['b']), 1));
         }, throwsA(isA<ClosedException>()));
+      });
+    });
+
+    group('$testSubject history', () {
+      EventSink sink;
+      EventSource source;
+      DateTime t1 = DateTime.now();
+      DateTime t2 = DateTime.now().add(Duration(seconds: 5));
+      setUp(() {
+        sink = testSubject.createEventSink();
+
+        sink.add(Event('joe', const Attribute.unchecked(['age']), 33, t1));
+        sink.add(Event('joe', const Attribute.unchecked(['age']), 34, t2));
+
+        source = testSubject.createEventSource(sink);
+      });
+      test('keeps all events', () async {
+        expect(
+            await source.allEvents.toList(),
+            equals([
+              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
+              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+            ]));
       });
     });
   }
