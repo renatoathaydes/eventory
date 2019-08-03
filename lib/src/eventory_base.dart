@@ -44,7 +44,7 @@ class Attribute {
   bool get isEmpty => path.isEmpty;
 
   @override
-  String toString() => 'Attribute{${pathString}';
+  String toString() => 'Attribute{${pathString}}';
 }
 
 /// Event is the most basic element of knowledge about a certain domain which
@@ -100,7 +100,7 @@ abstract class EventSink extends Sink<Event> {
   /// Add a batch of events to this sink.
   ///
   /// Returns a [FutureOr] to allow for possibly async ack on writes.
-  FutureOr addBatch(List<Event> events) async {
+  FutureOr addBatch(Iterable<Event> events) async {
     for (var event in events) {
       await add(event);
     }
@@ -124,11 +124,22 @@ abstract class EventSink extends Sink<Event> {
 
 /// A source of [Event]s.
 ///
-/// It is used to retrieve events.
+/// It can be used to retrieve events and obtain the state of entities at certain
+/// instants, which is re-constructed based on the events in this [EventSource].
+///
+/// If the state of the entities affected by events at a particular instant is
+/// all that is of interest, a [EntitiesSnapshot] can be obtained, which can
+/// be much more efficient for querying information.
 mixin EventSource {
   /// All [Event]s known to this [EventSource] at the time this property
   /// is accessed.
   Stream<Event> get allEvents;
+
+  /// Gets a snapshot of the state of the entities in this [EventSource] at
+  /// a certain instant.
+  ///
+  /// If no instant is given, the current instant is used.
+  FutureOr<EntitiesSnapshot> getSnapshot([DateTime instant]);
 
   /// Get the value for an [Attribute] of an entity with the given key,
   /// at the given instant.
@@ -137,7 +148,7 @@ mixin EventSource {
   ///
   /// If no entity with the given key exists, or it has no such attribute at
   /// the relevant instant, null is returned.
-  dynamic getValue(String key, Attribute attribute, [DateTime instant]);
+  FutureOr getValue(String key, Attribute attribute, [DateTime instant]);
 
   /// Get the entity with the given key.
   ///
@@ -149,5 +160,33 @@ mixin EventSource {
   ///
   /// If no event has ever affected an entity with the given key, an empty
   /// [Map] is returned.
-  Map<Attribute, dynamic> getEntity(String key, [DateTime instant]);
+  FutureOr<Map<Attribute, dynamic>> getEntity(String key,
+      [DateTime instant]);
+
+  /// Get a partial view of this [EventSource] containing all [Event]s within
+  /// the time window given by the [from] and [to] instants.
+  ///
+  /// If [from] or [to] are not provided, the partial's time window is unbounded
+  /// at the early or late edge, respectively.
+  FutureOr<EventSource> partial({DateTime from, DateTime to});
+}
+
+/// A snapshot of all entities within an [EventSource] at a certain instant.
+///
+/// Snapshots provide all the information contained in an [EventSource] at
+/// a single instant, but cannot look back or forth into the events which led
+/// to that state. For this reason, they can be stored in a much more compact
+/// format than a full [EventSource], and be more efficient at querying
+/// information when only data at a certain instant matters.
+mixin EntitiesSnapshot {
+  /// The keys of all entities in this sna>pshot.
+  Set<String> get keys;
+
+  /// The number of entities in this snapshot.
+  int get length;
+
+  /// Get an entity's state from this snapshot by its key.
+  ///
+  /// Returns an empty [Map] if nothing is known about an entity with the given key.
+  Map<Attribute, dynamic> operator [](String key);
 }

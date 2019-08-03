@@ -11,7 +11,7 @@ environment:
 
 dependencies:
   meta:
-  collection:
+  collection: ^1.14.11
 
 dev_dependencies:
   pedantic: ^1.7.0

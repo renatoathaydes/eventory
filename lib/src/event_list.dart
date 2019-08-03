@@ -18,6 +18,27 @@ class EventList {
 
   Iterable<Event> get all => _events.values.expand((e) => e);
 
+  Iterable<Event> partial({DateTime from, DateTime to}) {
+    if (from == null && to == null) {
+      return all;
+    }
+    if (from == null) {
+      return _events.values.expand((e) => e).takeWhile(
+          (e) => e.instant.isBefore(to) || e.instant.isAtSameMomentAs(to));
+    }
+    if (to == null) {
+      return _events.values
+          .expand((e) => e)
+          .skipWhile((e) => e.instant.isBefore(from));
+    }
+    // both from and to are non-null
+    return _events.values
+        .expand((e) => e)
+        .skipWhile((e) => e.instant.isBefore(from))
+        .takeWhile(
+            (e) => e.instant.isBefore(to) || e.instant.isAtSameMomentAs(to));
+  }
+
   Event findEvent({Attribute attribute, DateTime instant}) {
     instant ??= DateTime.now();
     final attributeMatches = _attributeLookupFunction(attribute);

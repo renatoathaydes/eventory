@@ -46,7 +46,7 @@ class FileEventSink extends EventSink {
   }
 
   @override
-  Future<void> addBatch(List<Event> events) async {
+  Future<void> addBatch(Iterable<Event> events) async {
     assertNotClosed();
     if (events.isEmpty) return;
     // persist batched Events as a single JSON List where each 4 elements form
@@ -167,4 +167,14 @@ class FileEventSource with EventSource {
 
   @override
   Stream<Event> get allEvents => _delegate.allEvents;
+
+  @override
+  EntitiesSnapshot getSnapshot([DateTime instant]) {
+    return _delegate.getSnapshot(instant);
+  }
+
+  @override
+  EventSource partial({DateTime from, DateTime to}) {
+    return _delegate.partial(from: from, to: to);
+  }
 }

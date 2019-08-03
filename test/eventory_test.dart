@@ -255,13 +255,15 @@ void main() {
     group('$testSubject history', () {
       EventSink sink;
       EventSource source;
-      DateTime t1 = DateTime.now();
-      DateTime t2 = DateTime.now().add(Duration(seconds: 5));
+      DateTime t1 = DateTime.parse('1970-01-01');
+      DateTime t2 = t1.add(Duration(seconds: 5));
+      DateTime t3 = t1.add(Duration(seconds: 15));
       setUp(() {
         sink = testSubject.createEventSink();
 
         sink.add(Event('joe', const Attribute.unchecked(['age']), 33, t1));
         sink.add(Event('joe', const Attribute.unchecked(['age']), 34, t2));
+        sink.add(Event('mary', const Attribute.unchecked(['age']), 39, t3));
 
         source = testSubject.createEventSource(sink);
       });
@@ -271,7 +273,55 @@ void main() {
             equals([
               Event('joe', const Attribute.unchecked(["age"]), 33, t1),
               Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
             ]));
+      });
+      test('partial view (full)', () async {
+        expect(
+            await (await source.partial()).allEvents.toList(),
+            equals([
+              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
+              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
+            ]));
+      });
+      test('partial views (from instant)', () async {
+        expect(
+            await (await source.partial(from: t2)).allEvents.toList(),
+            equals([
+              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
+            ]));
+      });
+      test('partial views (to instant)', () async {
+        expect(
+            await (await source.partial(to: t2)).allEvents.toList(),
+            equals([
+              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
+              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+            ]));
+      });
+      test('partial views (from and to instants)', () async {
+        expect(
+            await (await source.partial(from: t2, to: t2)).allEvents.toList(),
+            equals([
+              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+            ]));
+      });
+      test('snapshot (full)', () async {
+        final snapshot = await source.getSnapshot();
+        expect(
+            snapshot['joe'],
+            equals({
+              const Attribute.unchecked(['age']): 34
+            }));
+        expect(
+            snapshot['mary'],
+            equals({
+              const Attribute.unchecked(['age']): 39
+            }));
+        expect(snapshot.keys, equals({'joe', 'mary'}));
+        expect(snapshot.length, equals(2));
       });
     });
   }
