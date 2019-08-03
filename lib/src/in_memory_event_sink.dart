@@ -23,14 +23,14 @@ class InMemoryEventSink extends EventSink with EventSource {
   }
 
   @override
-  dynamic getValue(String key, Attribute attribute, [DateTime instant]) {
+  dynamic getValue(String key, String attribute, [DateTime instant]) {
     return _db[key]?.findEvent(attribute: attribute, instant: instant)?.value;
   }
 
   @override
-  Map<Attribute, dynamic> getEntity(String key, [DateTime instant]) {
+  Map<String, dynamic> getEntity(String key, [DateTime instant]) {
     instant ??= DateTime.now();
-    final result = Map<Attribute, dynamic>();
+    final result = Map<String, dynamic>();
     final events =
         _db[key]?.all?.takeWhile((event) => event.instant.isBefore(instant)) ??
             const [];
@@ -50,7 +50,7 @@ class InMemoryEventSink extends EventSink with EventSource {
   @override
   InMemoryEntitiesSnapshot getSnapshot([DateTime instant]) {
     instant ??= DateTime.now();
-    final result = Map<String, Map<Attribute, dynamic>>();
+    final result = Map<String, Map<String, dynamic>>();
     _db.keys.forEach((key) {
       final entity = getEntity(key, instant);
       if (entity.isNotEmpty) {
@@ -62,7 +62,7 @@ class InMemoryEventSink extends EventSink with EventSource {
 }
 
 class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
-  final Map<String, Map<Attribute, dynamic>> _entities;
+  final Map<String, Map<String, dynamic>> _entities;
 
   InMemoryEntitiesSnapshot(this._entities);
 
@@ -72,5 +72,5 @@ class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
   int get length => _entities.length;
 
   @override
-  Map<Attribute, dynamic> operator [](String key) => _entities[key];
+  Map<String, dynamic> operator [](String key) => _entities[key];
 }

@@ -17,16 +17,25 @@ typedef EventValueDecoder = Object Function(Object);
 
 T _identity<T>(T value) => value;
 
+/// Adds support for some common types that the default jsonEncoder cannot
+/// encode by itself.
+Object _customJsonEncoder(Object value) {
+  if (value is Set) {
+    return value.toList();
+  }
+  return value;
+}
+
 class FileEventSink extends EventSink {
   final File file;
   final EventValueEncoder encodeValue;
 
-  FileEventSink(this.file, {this.encodeValue = _identity});
+  FileEventSink(this.file, {this.encodeValue = _customJsonEncoder});
 
-  List _encodedList(Event event) => [
+  List _encodedList(Event event) => <Object>[
         event.instant.toIso8601String(),
         event.key,
-        event.attribute.path,
+        event.attribute,
         encodeValue(event.value)
       ];
 
@@ -51,8 +60,10 @@ class FileEventSink extends EventSink {
     if (events.isEmpty) return;
     // persist batched Events as a single JSON List where each 4 elements form
     // a single Event.
-    final json = jsonEncode(
-        events.map(_encodedList).expand(_identity).toList(growable: false));
+    final json = jsonEncode(events
+        .map(_encodedList)
+        .expand<Object>(_identity)
+        .toList(growable: false));
     await _writeln(json);
   }
 }
@@ -85,22 +96,11 @@ class FileEventSource with EventSource {
         .forEach(_addLine);
   }
 
-  Attribute _decodeAttribute(List list) {
-    final path = list.map((item) {
-      try {
-        return item as String;
-      } catch (e) {
-        throw "item is not a String";
-      }
-    }).toList(growable: false);
-    return Attribute(path);
-  }
-
   Event _decodeEventList(Iterator list) {
-    // Example: ["2010-02-03T00:00:00.000","hello",["p1","p2"],42]
+    // Example: ["2010-02-03T00:00:00.000","hello","p1/p2",42]
     DateTime instant;
     String key;
-    Attribute attribute;
+    String attribute;
     dynamic value;
 
     final moveNext = () {
@@ -121,7 +121,7 @@ class FileEventSource with EventSource {
       throw 'Invalid key component: $e';
     }
     try {
-      attribute = _decodeAttribute(moveNext() as List);
+      attribute = moveNext() as String;
     } catch (e) {
       throw 'Invalid attribute component: $e';
     }
@@ -156,12 +156,12 @@ class FileEventSource with EventSource {
   }
 
   @override
-  Map<Attribute, dynamic> getEntity(String key, [DateTime instant]) {
+  Map<String, dynamic> getEntity(String key, [DateTime instant]) {
     return _delegate.getEntity(key, instant);
   }
 
   @override
-  dynamic getValue(String key, Attribute attribute, [DateTime instant]) {
+  dynamic getValue(String key, String attribute, [DateTime instant]) {
     return _delegate.getValue(key, attribute, instant);
   }
 

@@ -23,10 +23,10 @@ void main() {
     });
 
     test('has no content', () {
-      expect(source.getValue('hello', Attribute(['p1', 'p2'])), isNull);
-      expect(source.getValue('hello', Attribute(['p1'])), isNull);
-      expect(source.getValue('hello', Attribute(['a'])), isNull);
-      expect(source.getValue('bye', Attribute(['a'])), isNull);
+      expect(source.getValue('hello', 'p1/p2'), isNull);
+      expect(source.getValue('hello', 'p1'), isNull);
+      expect(source.getValue('hello', 'a'), isNull);
+      expect(source.getValue('bye', 'a'), isNull);
     });
   });
 
@@ -34,15 +34,15 @@ void main() {
     FileEventSource source;
     setUp(() async {
       source = await createEventSource(
-          contents: '"2010-02-03T00:00:00.000","hello",["p1","p2"],42\n');
+          contents: '"2010-02-03T00:00:00.000","hello","p1/p2",42\n');
     });
 
     test('has contents as expected', () {
-      expect(source.getValue('hello', Attribute(['p1', 'p2'])), equals(42));
+      expect(source.getValue('hello', 'p1/p2'), equals(42));
 
-      expect(source.getValue('hello', Attribute(['p1'])), isNull);
-      expect(source.getValue('hello', Attribute(['a'])), isNull);
-      expect(source.getValue('bye', Attribute(['a'])), isNull);
+      expect(source.getValue('hello', 'p1'), isNull);
+      expect(source.getValue('hello', 'a'), isNull);
+      expect(source.getValue('bye', 'a'), isNull);
     });
   });
 
@@ -50,27 +50,27 @@ void main() {
     FileEventSource source;
     setUp(() async {
       source = await createEventSource(
-          contents: '"2010-02-03T00:00:00.000","hello",["p1","p2"],42\n'
-              '["2010-02-03T00:00:00.000","hello",["a"],"A",'
-              '"2010-02-03T00:00:00.000","hello",["b"],"B",'
-              '"2010-02-04T00:00:00.000","hello",["c"],"C",'
-              '"2010-02-05T00:00:00.000","bye",["d"],"DD",'
-              '"2010-02-06T00:00:00.000","bye",["e"],"EE",'
-              '"2010-02-07T00:00:00.000","bye",["f"],"FF"]\n');
+          contents: '"2010-02-03T00:00:00.000","hello","p1/p2",42\n'
+              '["2010-02-03T00:00:00.000","hello","a","A",'
+              '"2010-02-03T00:00:00.000","hello","b","B",'
+              '"2010-02-04T00:00:00.000","hello","c","C",'
+              '"2010-02-05T00:00:00.000","bye","d","DD",'
+              '"2010-02-06T00:00:00.000","bye","e","EE",'
+              '"2010-02-07T00:00:00.000","bye","f","FF"]\n');
     });
 
     test('has contents as expected', () {
-      expect(source.getValue('hello', Attribute(['p1', 'p2'])), equals(42));
-      expect(source.getValue('hello', Attribute(['a'])), equals('A'));
-      expect(source.getValue('hello', Attribute(['b'])), equals('B'));
-      expect(source.getValue('hello', Attribute(['c'])), equals('C'));
-      expect(source.getValue('bye', Attribute(['d'])), equals('DD'));
-      expect(source.getValue('bye', Attribute(['e'])), equals('EE'));
-      expect(source.getValue('bye', Attribute(['f'])), equals('FF'));
+      expect(source.getValue('hello', 'p1/p2'), equals(42));
+      expect(source.getValue('hello', 'a'), equals('A'));
+      expect(source.getValue('hello', 'b'), equals('B'));
+      expect(source.getValue('hello', 'c'), equals('C'));
+      expect(source.getValue('bye', 'd'), equals('DD'));
+      expect(source.getValue('bye', 'e'), equals('EE'));
+      expect(source.getValue('bye', 'f'), equals('FF'));
 
-      expect(source.getValue('hello', Attribute(['DD'])), isNull);
-      expect(source.getValue('bye', Attribute(['a'])), isNull);
-      expect(source.getValue('other', Attribute(['a'])), isNull);
+      expect(source.getValue('hello', 'DD'), isNull);
+      expect(source.getValue('bye', 'a'), isNull);
+      expect(source.getValue('other', 'a'), isNull);
     });
   });
 
@@ -87,14 +87,14 @@ void main() {
     test('with single event with too many components', () {
       expect(() async {
         await createEventSource(
-            contents: '"2010-02-03T00:00:00.000","hello",["p1"],42,43');
+            contents: '"2010-02-03T00:00:00.000","hello","p1",42,43');
       },
           throwsA(isA<EventDecodingException>()
               .having((e) => e.cause, 'cause', equals('Too many components'))));
     });
     test('with single event with invalid instant', () {
       expect(() async {
-        await createEventSource(contents: '"hi","hello",["p1"],42,43');
+        await createEventSource(contents: '"hi","hello","p1",42,43');
       },
           throwsA(isA<EventDecodingException>().having(
               (e) => e.cause,
@@ -105,7 +105,7 @@ void main() {
     test('with single event with invalid key', () {
       expect(() async {
         await createEventSource(
-            contents: '"2010-02-03T00:00:00.000",234,["p1"],42');
+            contents: '"2010-02-03T00:00:00.000",234,"p1",42');
       },
           throwsA(isA<EventDecodingException>().having(
               (e) => e.cause,
@@ -113,7 +113,7 @@ void main() {
               equals("Invalid key component: "
                   "type 'int' is not a subtype of type 'String' in type cast"))));
     });
-    test('with single event with invalid Attribute (not List)', () {
+    test('with single event with invalid Attribute (not String)', () {
       expect(() async {
         await createEventSource(
             contents: '"2010-02-03T00:00:00.000","a",41,42');
@@ -122,15 +122,7 @@ void main() {
               (e) => e.cause,
               'cause',
               equals("Invalid attribute component: "
-                  "type 'int' is not a subtype of type 'List<dynamic>' in type cast"))));
-    });
-    test('with single event with invalid Attribute (List item)', () {
-      expect(() async {
-        await createEventSource(
-            contents: '"2010-02-03T00:00:00.000","a",[41],42');
-      },
-          throwsA(isA<EventDecodingException>().having((e) => e.cause, 'cause',
-              equals("Invalid attribute component: item is not a String"))));
+                  "type 'int' is not a subtype of type 'String' in type cast"))));
     });
   });
 }

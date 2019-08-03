@@ -4,8 +4,6 @@ import 'package:eventory/eventory.dart';
 
 import 'eventory_base.dart';
 
-typedef _AttributeLookup = bool Function(Event event);
-
 /// A List of [Event] assumed to share the same key.
 ///
 /// Events can bee looked up by attribute and instant.
@@ -39,28 +37,20 @@ class EventList {
             (e) => e.instant.isBefore(to) || e.instant.isAtSameMomentAs(to));
   }
 
-  Event findEvent({Attribute attribute, DateTime instant}) {
+  Event findEvent({String attribute, DateTime instant}) {
     instant ??= DateTime.now();
-    final attributeMatches = _attributeLookupFunction(attribute);
     while (true) {
       final at = _events.lastKeyBefore(instant);
       if (at == null) return null;
       final events = _events[at];
-      final result = events.firstWhere(attributeMatches, orElse: () => null);
+      final result = events.firstWhere((e) => e.attribute == attribute,
+          orElse: () => null);
       if (result != null) {
         return result;
       }
 
       // continue search from the previous instant
       instant = at;
-    }
-  }
-
-  _AttributeLookup _attributeLookupFunction(Attribute attribute) {
-    if (attribute == null || attribute.isEmpty) {
-      return (e) => true;
-    } else {
-      return (e) => e.attribute == attribute;
     }
   }
 }

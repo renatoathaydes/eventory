@@ -1,51 +1,8 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
 import 'errors.dart';
-
-/// Attribute of an entity.
-///
-/// An [Attribute] represents a property of an entity and can be updated via
-/// an [Event].
-@immutable
-class Attribute {
-  /// Path of an attribute.
-  ///
-  /// Each path component must not contain the new-line or '/' characters.
-  final List<String> path;
-
-  String get pathString => path.join('/');
-
-  /// Create an [Attribute] without checking the given path for invalid
-  /// characters.
-  const Attribute.unchecked(this.path);
-
-  /// Create an [Attribute] with the given path.
-  ///
-  /// Throws [ArgumentError] if the path is invalid.
-  Attribute(List<String> path) : path = path {
-    if (path.contains('[/|\n|\r]')) {
-      throw ArgumentError.value(
-          path, 'path', "Path must not contain new-line or '/' characters");
-    }
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is Attribute &&
-          const ListEquality().equals(this.path, other.path));
-
-  @override
-  int get hashCode => path.hashCode;
-
-  bool get isEmpty => path.isEmpty;
-
-  @override
-  String toString() => 'Attribute{${pathString}}';
-}
 
 /// Event is the most basic element of knowledge about a certain domain which
 /// allows the state of the system to be constructed over time.
@@ -55,7 +12,7 @@ class Event {
   final String key;
 
   /// the attribute affected by this event.
-  final Attribute attribute;
+  final String attribute;
 
   /// the new value of the attribute. If null, the attribute is removed.
   final dynamic value;
@@ -141,14 +98,14 @@ mixin EventSource {
   /// If no instant is given, the current instant is used.
   FutureOr<EntitiesSnapshot> getSnapshot([DateTime instant]);
 
-  /// Get the value for an [Attribute] of an entity with the given key,
+  /// Get the value for an attribute of an entity with the given key,
   /// at the given instant.
   ///
   /// If no instant is given, the current instant is used.
   ///
   /// If no entity with the given key exists, or it has no such attribute at
   /// the relevant instant, null is returned.
-  FutureOr getValue(String key, Attribute attribute, [DateTime instant]);
+  FutureOr getValue(String key, String attribute, [DateTime instant]);
 
   /// Get the entity with the given key.
   ///
@@ -160,8 +117,7 @@ mixin EventSource {
   ///
   /// If no event has ever affected an entity with the given key, an empty
   /// [Map] is returned.
-  FutureOr<Map<Attribute, dynamic>> getEntity(String key,
-      [DateTime instant]);
+  FutureOr<Map<String, dynamic>> getEntity(String key, [DateTime instant]);
 
   /// Get a partial view of this [EventSource] containing all [Event]s within
   /// the time window given by the [from] and [to] instants.
@@ -188,5 +144,5 @@ mixin EntitiesSnapshot {
   /// Get an entity's state from this snapshot by its key.
   ///
   /// Returns an empty [Map] if nothing is known about an entity with the given key.
-  Map<Attribute, dynamic> operator [](String key);
+  Map<String, dynamic> operator [](String key);
 }

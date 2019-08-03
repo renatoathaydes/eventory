@@ -1,5 +1,5 @@
 class EventDecodingException implements Exception {
-  final cause;
+  final Object cause;
 
   const EventDecodingException(this.cause);
 

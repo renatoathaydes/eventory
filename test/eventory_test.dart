@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:eventory/eventory.dart';
+import 'package:eventory/src/file_event_sink.dart';
 import 'package:test/test.dart';
 
-mixin _TestSubject {
+abstract class _TestSubject {
   EventSink createEventSink();
 
-  EventSource createEventSource(EventSink sink);
+  FutureOr<EventSource> createEventSource(EventSink sink);
 }
 
 class _InMemoryTestSubject with _TestSubject {
@@ -18,9 +22,34 @@ class _InMemoryTestSubject with _TestSubject {
   String toString() => 'InMemoryTestSubject';
 }
 
+class _FileTestSubject with _TestSubject {
+  final dir = Directory.systemTemp.createTempSync('file_test_subject');
+  int _index = 0;
+
+  _FileTestSubject() {
+    print("FileTestSubject writing file to ${tempFile.path}");
+  }
+
+  File get tempFile => File("${dir.path}/my_test${_index}.txt");
+
+  @override
+  EventSink createEventSink() {
+    _index++;
+    return FileEventSink(tempFile);
+  }
+
+  @override
+  Future<EventSource> createEventSource(EventSink sink) async =>
+      FileEventSource.load(tempFile);
+
+  @override
+  String toString() => 'FileTestSubject';
+}
+
 void main() {
-  final List<_TestSubject> testSubjects = [
+  final testSubjects = <_TestSubject>[
     _InMemoryTestSubject(),
+    _FileTestSubject(),
   ];
 
   for (final testSubject in testSubjects) {
@@ -28,67 +57,48 @@ void main() {
       EventSink sink;
       EventSource source;
 
-      setUp(() {
-        sink = testSubject.createEventSink();
+      setUp(() async {
+        sink = testSubject.createEventSink() as EventSink;
 
         // given some events
-        sink.add(Event('joe', const Attribute.unchecked(["age"]), 24));
-        sink.add(Event('mary', const Attribute.unchecked(["age"]), 26));
-        sink.add(Event('adam', const Attribute.unchecked(["age"]), 53));
-        sink.add(Event('joe', const Attribute.unchecked(["address", "street"]),
-            'High Street'));
-        sink.add(Event('joe',
-            const Attribute.unchecked(["address", "street_number"]), 32));
-        sink.add(Event('mary', const Attribute.unchecked(["address", "street"]),
-            'Low Street'));
-        sink.add(Event('mary',
-            const Attribute.unchecked(["address", "street_number"]), 423));
+        await sink.add(Event('joe', "age", 24));
+        await sink.add(Event('mary', "age", 26));
+        await sink.add(Event('adam', "age", 53));
+        await sink.add(Event('joe', "address/street", 'High Street'));
+        await sink.add(Event('joe', "address/street_number", 32));
+        await sink.add(Event('mary', "address/street", 'Low Street'));
+        await sink.add(Event('mary', "address/street_number", 423));
 
         // updates Joe's address
-        sink.add(Event('joe', const Attribute.unchecked(["address", "street"]),
-            'Medium Street'));
-        sink.add(Event('joe',
-            const Attribute.unchecked(["address", "street_number"]), 12));
+        await sink.add(Event('joe', "address/street", 'Medium Street'));
+        await sink.add(Event('joe', "address/street_number", 12));
 
-        source = testSubject.createEventSource(sink);
+        source = await testSubject.createEventSource(sink);
       });
 
       test('can use simple event lookup', () {
-        expect(source.getValue('joe', Attribute(["age"])), equals(24));
-        expect(source.getValue('mary', const Attribute.unchecked(["age"])),
-            equals(26));
-        expect(source.getValue('adam', const Attribute.unchecked(["age"])),
-            equals(53));
+        expect(source.getValue('joe', "age"), equals(24));
+        expect(source.getValue('mary', "age"), equals(26));
+        expect(source.getValue('adam', "age"), equals(53));
 
-        expect(source.getValue('joe', const Attribute.unchecked(["number"])),
-            isNull);
-        expect(source.getValue('joe', const Attribute.unchecked(["address"])),
-            isNull);
-        expect(source.getValue('other', const Attribute.unchecked(["age"])),
-            isNull);
-        expect(source.getValue('other', const Attribute.unchecked(["xxx"])),
-            isNull);
+        expect(source.getValue('joe', "number"), isNull);
+        expect(source.getValue('joe', "address"), isNull);
+        expect(source.getValue('other', "age"), isNull);
+        expect(source.getValue('other', "xxx"), isNull);
       });
 
       test('can see updates in event lookup', () {
-        expect(source.getValue('joe', Attribute(["address", "street"])),
-            equals('Medium Street'));
-        expect(source.getValue('joe', Attribute(["address", "street_number"])),
-            equals(12));
         expect(
-            source.getValue(
-                'mary', const Attribute.unchecked(["address", "street"])),
-            equals('Low Street'));
-        expect(
-            source.getValue('mary',
-                const Attribute.unchecked(["address", "street_number"])),
-            equals(423));
+            source.getValue('joe', "address/street"), equals('Medium Street'));
+        expect(source.getValue('joe', "address/street_number"), equals(12));
+        expect(source.getValue('mary', "address/street"), equals('Low Street'));
+        expect(source.getValue('mary', "address/street_number"), equals(423));
       });
       test('can re-constitute a full entity', () {
         final expectedJoe = {
-          const Attribute.unchecked(["age"]): 24,
-          const Attribute.unchecked(["address", "street"]): 'Medium Street',
-          const Attribute.unchecked(["address", "street_number"]): 12,
+          "age": 24,
+          "address/street": 'Medium Street',
+          "address/street_number": 12,
         };
 
         final joe = source.getEntity('joe');
@@ -96,9 +106,9 @@ void main() {
         expect(joe, equals(expectedJoe));
 
         final expectedMary = {
-          const Attribute.unchecked(["age"]): 26,
-          const Attribute.unchecked(["address", "street"]): 'Low Street',
-          const Attribute.unchecked(["address", "street_number"]): 423,
+          "age": 26,
+          "address/street": 'Low Street',
+          "address/street_number": 423,
         };
 
         final mary = source.getEntity('mary');
@@ -106,7 +116,7 @@ void main() {
         expect(mary, equals(expectedMary));
 
         final expectedAdam = {
-          const Attribute.unchecked(["age"]): 53,
+          "age": 53,
         };
 
         final adam = source.getEntity('adam');
@@ -119,98 +129,88 @@ void main() {
       EventSink sink;
       EventSource source;
 
-      setUp(() {
-        sink = testSubject.createEventSink();
+      setUp(() async {
+        sink = testSubject.createEventSink() as EventSink;
 
         // given some events
-        sink.add(Event('brazil', const Attribute.unchecked(["population"]),
-            90e6, DateTime.parse('1970-01-01')));
-        sink.add(Event('brazil', const Attribute.unchecked(["population"]),
-            100e6, DateTime.parse('1972-03-15')));
-        sink.add(Event('brazil', const Attribute.unchecked(["population"]),
-            150e6, DateTime.parse('1990-06-02')));
-        sink.add(Event('brazil', const Attribute.unchecked(["population"]),
-            200e6, DateTime.parse('2012-01-02')));
-        sink.add(Event('sweden', const Attribute.unchecked(["population"]), 7e6,
-            DateTime.parse('1955-01-01')));
-        sink.add(Event('sweden', const Attribute.unchecked(["population"]), 8e6,
-            DateTime.parse('1970-01-01')));
-        sink.add(Event('sweden', const Attribute.unchecked(["population"]), 9e6,
-            DateTime.parse('2005-06-01')));
-        sink.add(Event('sweden', const Attribute.unchecked(["population"]),
-            10e6, DateTime.parse('2019-01-01')));
+        await sink.add(
+            Event('brazil', "population", 90e6, DateTime.parse('1970-01-01')));
+        await sink.add(
+            Event('brazil', "population", 100e6, DateTime.parse('1972-03-15')));
+        await sink.add(
+            Event('brazil', "population", 150e6, DateTime.parse('1990-06-02')));
+        await sink.add(
+            Event('brazil', "population", 200e6, DateTime.parse('2012-01-02')));
+        await sink.add(
+            Event('sweden', "population", 7e6, DateTime.parse('1955-01-01')));
+        await sink.add(
+            Event('sweden', "population", 8e6, DateTime.parse('1970-01-01')));
+        await sink.add(
+            Event('sweden', "population", 9e6, DateTime.parse('2005-06-01')));
+        await sink.add(
+            Event('sweden', "population", 10e6, DateTime.parse('2019-01-01')));
 
-        sink.add(Event('sweden', const Attribute.unchecked(["languages"]),
-            {'swedish', 'sami'}, DateTime.parse('0912-01-01')));
-        sink.add(Event('brazil', const Attribute.unchecked(["languages"]),
-            {'portuguese'}, DateTime.parse('1500-01-01')));
+        await sink.add(Event('sweden', "languages", {'swedish', 'sami'},
+            DateTime.parse('0912-01-01')));
+        await sink.add(Event('brazil', "languages", {'portuguese'},
+            DateTime.parse('1500-01-01')));
 
-        source = testSubject.createEventSource(sink);
+        source = await testSubject.createEventSource(sink);
       });
 
       test('can use simple event lookup at different points in time', () {
-        expect(source.getValue('brazil', Attribute(["population"])),
-            equals(200e6));
+        expect(source.getValue('brazil', "population"), equals(200e6));
         expect(
-            source.getValue('brazil', Attribute(["population"]),
-                DateTime.parse('1970-06-01')),
+            source.getValue(
+                'brazil', "population", DateTime.parse('1970-06-01')),
             equals(90e6));
         expect(
-            source.getValue('brazil', Attribute(["population"]),
-                DateTime.parse('1990-06-01')),
+            source.getValue(
+                'brazil', "population", DateTime.parse('1990-06-01')),
             equals(100e6));
         expect(
-            source.getValue('brazil', Attribute(["population"]),
-                DateTime.parse('1990-06-05')),
+            source.getValue(
+                'brazil', "population", DateTime.parse('1990-06-05')),
             equals(150e6));
         expect(
-            source.getValue('sweden', Attribute(["population"]),
-                DateTime.parse('1960-01-01')),
+            source.getValue(
+                'sweden', "population", DateTime.parse('1960-01-01')),
             equals(7e6));
 
         expect(
-            source.getValue('brazil', const Attribute.unchecked(["population"]),
-                DateTime.parse('1930-01-01')),
-            isNull);
-        expect(
-            source.getValue('sweden', const Attribute.unchecked(["population"]),
-                DateTime.parse('1930-01-01')),
-            isNull);
-        expect(source.getValue('brazil', const Attribute.unchecked(["number"])),
-            isNull);
-        expect(
-            source.getValue('sweden', const Attribute.unchecked(["address"])),
+            source.getValue(
+                'brazil', "population", DateTime.parse('1930-01-01')),
             isNull);
         expect(
             source.getValue(
-                'australia', const Attribute.unchecked(["population"])),
+                'sweden', "population", DateTime.parse('1930-01-01')),
             isNull);
-        expect(
-            source.getValue(
-                'sweden', const Attribute.unchecked(["xxx", "yyy"])),
-            isNull);
+        expect(source.getValue('brazil', "number"), isNull);
+        expect(source.getValue('sweden', "address"), isNull);
+        expect(source.getValue('australia', "population"), isNull);
+        expect(source.getValue('sweden', "xxx/yyy"), isNull);
       });
 
       test('can re-constitute a full entity at different points in time', () {
-        final expectedBrazilIn1200 = <Attribute, dynamic>{};
+        final expectedBrazilIn1200 = <String, dynamic>{};
 
         final expectedBrazilIn1971 = {
-          const Attribute.unchecked(["population"]): 90e6,
-          const Attribute.unchecked(["languages"]): {'portuguese'},
+          "population": 90e6,
+          "languages": {'portuguese'},
         };
 
         final expectedBrazilIn2020 = {
-          const Attribute.unchecked(["population"]): 200e6,
-          const Attribute.unchecked(["languages"]): {'portuguese'},
+          "population": 200e6,
+          "languages": {'portuguese'},
         };
 
         final expectedSwedenIn2020 = {
-          const Attribute.unchecked(["population"]): 10e6,
-          const Attribute.unchecked(["languages"]): {'swedish', 'sami'},
+          "population": 10e6,
+          "languages": {'swedish', 'sami'},
         };
 
         final expectedSwedenIn1200 = {
-          const Attribute.unchecked(["languages"]): {'swedish', 'sami'},
+          "languages": {'swedish', 'sami'},
         };
 
         final brazilIn1200 =
@@ -242,12 +242,12 @@ void main() {
     group('$testSubject errors', () {
       EventSink sink;
       setUp(() {
-        sink = testSubject.createEventSink();
+        sink = testSubject.createEventSink() as EventSink;
       });
       test('cannot add Event after closed', () {
         sink.close();
-        expect(() {
-          sink.add(Event('a', const Attribute.unchecked(['b']), 1));
+        expect(() async {
+          await sink.add(Event('a', "b", 1));
         }, throwsA(isA<ClosedException>()));
       });
     });
@@ -258,68 +258,60 @@ void main() {
       DateTime t1 = DateTime.parse('1970-01-01');
       DateTime t2 = t1.add(Duration(seconds: 5));
       DateTime t3 = t1.add(Duration(seconds: 15));
-      setUp(() {
-        sink = testSubject.createEventSink();
+      setUp(() async {
+        sink = testSubject.createEventSink() as EventSink;
 
-        sink.add(Event('joe', const Attribute.unchecked(['age']), 33, t1));
-        sink.add(Event('joe', const Attribute.unchecked(['age']), 34, t2));
-        sink.add(Event('mary', const Attribute.unchecked(['age']), 39, t3));
+        await sink.add(Event('joe', 'age', 33, t1));
+        await sink.add(Event('joe', 'age', 34, t2));
+        await sink.add(Event('mary', 'age', 39, t3));
 
-        source = testSubject.createEventSource(sink);
+        source = await testSubject.createEventSource(sink);
       });
       test('keeps all events', () async {
         expect(
             await source.allEvents.toList(),
             equals([
-              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
-              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
-              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
+              Event('joe', "age", 33, t1),
+              Event('joe', "age", 34, t2),
+              Event('mary', "age", 39, t3),
             ]));
       });
       test('partial view (full)', () async {
         expect(
             await (await source.partial()).allEvents.toList(),
             equals([
-              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
-              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
-              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
+              Event('joe', "age", 33, t1),
+              Event('joe', "age", 34, t2),
+              Event('mary', "age", 39, t3),
             ]));
       });
       test('partial views (from instant)', () async {
         expect(
             await (await source.partial(from: t2)).allEvents.toList(),
             equals([
-              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
-              Event('mary', const Attribute.unchecked(["age"]), 39, t3),
+              Event('joe', "age", 34, t2),
+              Event('mary', "age", 39, t3),
             ]));
       });
       test('partial views (to instant)', () async {
         expect(
             await (await source.partial(to: t2)).allEvents.toList(),
             equals([
-              Event('joe', const Attribute.unchecked(["age"]), 33, t1),
-              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+              Event('joe', "age", 33, t1),
+              Event('joe', "age", 34, t2),
             ]));
       });
       test('partial views (from and to instants)', () async {
         expect(
             await (await source.partial(from: t2, to: t2)).allEvents.toList(),
             equals([
-              Event('joe', const Attribute.unchecked(["age"]), 34, t2),
+              Event('joe', "age", 34, t2),
             ]));
       });
       test('snapshot (full)', () async {
         final snapshot = await source.getSnapshot();
-        expect(
-            snapshot['joe'],
-            equals({
-              const Attribute.unchecked(['age']): 34
-            }));
-        expect(
-            snapshot['mary'],
-            equals({
-              const Attribute.unchecked(['age']): 39
-            }));
+        expect(snapshot['joe'], equals({'age': 34}));
+        expect(snapshot['mary'], equals({'age': 39}));
         expect(snapshot.keys, equals({'joe', 'mary'}));
         expect(snapshot.length, equals(2));
       });
