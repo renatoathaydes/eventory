@@ -1,4 +1,4 @@
 import 'package:eventory/eventory.dart';
 
-main() {
+void main() {
 }
