@@ -21,7 +21,7 @@ T _identity<T>(T value) => value;
 /// encode by itself.
 Object _customJsonEncoder(Object value) {
   if (value is Set) {
-    return value.toList();
+    return value.toList(growable: false);
   }
   return value;
 }
@@ -42,7 +42,7 @@ class FileEventSink extends EventSink {
   String _removeEndChars(String s) => s.substring(1, s.length - 1);
 
   Future<void> _writeln(String line) async {
-    await file.writeAsString("$line\n", mode: FileMode.append, flush: true);
+    await file.writeAsString("$line\n", mode: FileMode.append, flush: false);
   }
 
   @override
