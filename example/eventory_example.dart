@@ -18,20 +18,27 @@ void main(List<String> args) async {
   final watch = Stopwatch();
   var sink = FileEventSink(tempFile);
 
-  print("Starting to write events to file ${tempFile.path}");
+  print("Starting to write events to file ${tempFile.path}.");
 
   watch.start();
   for (var event in events) {
     await sink.add(event);
   }
+  print(
+      "Done sending events in ${watch.elapsedMilliseconds} ms. Flushing events.");
+
+  // will close and wait for file handle to get flushed
+  await sink.close();
+
   watch.stop();
 
   events = null;
   sink = null;
 
-  print("All events added in ${watch.elapsedMilliseconds} ms");
+  print("All events written in ${watch.elapsedMilliseconds} ms total.");
+  print("Write throughput: ${(await tempFile.length()).toDouble() / watch.elapsedMilliseconds} MB/sec");
 
-  print("Checking for correctness");
+  print("Checking for correctness...");
   final source = await FileEventSource.load(tempFile);
 
   for (var i = 0; i < eventsPerCycle; i++) {
