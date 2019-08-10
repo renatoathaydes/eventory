@@ -77,7 +77,11 @@ void startCliLoop(Actor<MonitorCommand, void> monitorActor) async {
             args.length > 1 ? args.skip(1).join(' ') : randomString()));
         break;
       case 'print':
-        print(await tempFile.readAsString());
+        var readFrom = max(0, await tempFile.length() - 10000);
+        await (await tempFile.openRead(readFrom))
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .forEach(print);
         break;
       case 'flush':
         await sink.flush();
