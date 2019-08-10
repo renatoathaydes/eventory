@@ -185,12 +185,12 @@ class FileEventSource with EventSource {
   Stream<Event> get allEvents => _delegate.allEvents;
 
   @override
-  EntitiesSnapshot getSnapshot([DateTime instant]) {
+  Future<EntitiesSnapshot> getSnapshot([DateTime instant]) {
     return _delegate.getSnapshot(instant);
   }
 
   @override
-  EventSource partial({DateTime from, DateTime to}) {
+  Future<EventSource> partial({DateTime from, DateTime to}) {
     return _delegate.partial(from: from, to: to);
   }
 }

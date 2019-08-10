@@ -2,11 +2,23 @@ import 'event_list.dart';
 import 'eventory_base.dart';
 
 /// A simple in-memory [EventorySink] and [EventSource].
+///
+/// Implementation is kept as simple as possible intentionally, so that more
+/// advanced capabilities can be built on top of it.
+///
+/// Most of the time, users will prefer to use more those more advanced
+/// implementations instead of this one directly, as they might offer trade-offs
+/// that are more appropriate for the intended usage, such as caching for fast
+/// queries (at the cost of memory).
 class InMemoryEventSink extends EventorySink with EventSource {
   final Map<String, EventList> _db = {};
 
-  Iterable<Event> _all({DateTime from, DateTime to}) =>
-      _db.values.expand((e) => e.partial(from: from, to: to));
+  Stream<Event> _all({DateTime from, DateTime to}) async* {
+    final all = _db.values.expand((e) => e.partial(from: from, to: to));
+    for (var event in all) {
+      yield event;
+    }
+  }
 
   @override
   void add(Event event) {
@@ -39,24 +51,33 @@ class InMemoryEventSink extends EventorySink with EventSource {
   }
 
   @override
-  Stream<Event> get allEvents {
-    return Stream.fromIterable(_all().toList(growable: false));
+  Stream<Event> get allEvents => _all();
+
+  @override
+  Future<EventSource> partial({DateTime from, DateTime to}) async {
+    final result = InMemoryEventSink();
+    final batch = <Event>[];
+    await for (var event in _all(from: from, to: to)) {
+      batch.add(event);
+      if (batch.length == 100) {
+        result.addBatch(batch);
+        batch.clear();
+      }
+    }
+    result.addBatch(batch);
+    return result;
   }
 
   @override
-  EventSource partial({DateTime from, DateTime to}) =>
-      InMemoryEventSink()..addBatch(_all(from: from, to: to));
-
-  @override
-  InMemoryEntitiesSnapshot getSnapshot([DateTime instant]) {
+  Future<InMemoryEntitiesSnapshot> getSnapshot([DateTime instant]) async {
     instant ??= DateTime.now();
     final result = Map<String, Map<String, dynamic>>();
-    _db.keys.forEach((key) {
-      final entity = getEntity(key, instant);
+    for (var key in _db.keys) {
+      final entity = await Future(() => getEntity(key, instant));
       if (entity.isNotEmpty) {
         result[key] = entity;
       }
-    });
+    }
     return InMemoryEntitiesSnapshot(result);
   }
 }
