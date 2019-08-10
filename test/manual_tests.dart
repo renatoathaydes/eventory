@@ -21,12 +21,11 @@ class Monitor with Handler<MonitorCommand, void> {
     switch (signal) {
       case MonitorCommand.start:
         int tick = monitorTick;
-        print("Starting monitor");
         timer?.cancel();
         timer = Timer.periodic(Duration(seconds: 2), (timer) {
           // monitor tick should have changed since last run!
           if (tick == monitorTick) {
-            print("ERROR: EventLoop has been blocked for some time!");
+            print("WARN: EventLoop has been blocked for some time!");
           } else {
 //            print("Monitor: OK");
           }

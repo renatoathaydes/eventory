@@ -36,7 +36,9 @@ void main(List<String> args) async {
   sink = null;
 
   print("All events written in ${watch.elapsedMilliseconds} ms total.");
-  print("Write throughput: ${(await tempFile.length()).toDouble() / watch.elapsedMilliseconds} MB/sec");
+  print("Write throughput: "
+      "${(await tempFile.length()).toDouble() * 1e-6 / watch.elapsed.inSeconds}"
+      " MB/sec");
 
   print("Checking for correctness...");
   final source = await FileEventSource.load(tempFile);
