@@ -15,6 +15,7 @@ void main() {
 
     test('simple event', () async {
       await sink.add(Event('hello', "p1/p2", 42, DateTime.parse('2010-02-03')));
+      await sink.close();
       final fileContents = await sink.file.readAsString();
 
       expect(fileContents, equals(//
@@ -31,6 +32,8 @@ void main() {
         Event('bye', 'e', "EE", DateTime.parse('2010-02-06')),
         Event('bye', 'f', "FF", DateTime.parse('2010-02-07')),
       ]);
+      await sink.close();
+
       final fileContents = await sink.file.readAsString();
 
       expect(

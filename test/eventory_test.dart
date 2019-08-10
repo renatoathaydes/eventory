@@ -6,17 +6,17 @@ import 'package:eventory/src/file_event_sink.dart';
 import 'package:test/test.dart';
 
 abstract class _TestSubject {
-  EventSink createEventSink();
+  EventorySink createEventSink();
 
-  FutureOr<EventSource> createEventSource(EventSink sink);
+  FutureOr<EventSource> createEventSource(EventorySink sink);
 }
 
 class _InMemoryTestSubject with _TestSubject {
   @override
-  EventSink createEventSink() => InMemoryEventSink();
+  EventorySink createEventSink() => InMemoryEventSink();
 
   @override
-  EventSource createEventSource(EventSink sink) => sink as EventSource;
+  EventSource createEventSource(EventorySink sink) => sink as EventSource;
 
   @override
   String toString() => 'InMemoryTestSubject';
@@ -33,13 +33,13 @@ class _FileTestSubject with _TestSubject {
   File get tempFile => File("${dir.path}/my_test${_index}.txt");
 
   @override
-  EventSink createEventSink() {
+  EventorySink createEventSink() {
     _index++;
     return FileEventSink(tempFile);
   }
 
   @override
-  Future<EventSource> createEventSource(EventSink sink) async =>
+  Future<EventSource> createEventSource(EventorySink sink) async =>
       FileEventSource.load(tempFile);
 
   @override
@@ -54,11 +54,11 @@ void main() {
 
   for (final testSubject in testSubjects) {
     group('$testSubject with a few immediate events', () {
-      EventSink sink;
+      EventorySink sink;
       EventSource source;
 
       setUp(() async {
-        sink = testSubject.createEventSink() as EventSink;
+        sink = testSubject.createEventSink();
 
         // given some events
         await sink.add(Event('joe', "age", 24));
@@ -73,6 +73,7 @@ void main() {
         await sink.add(Event('joe', "address/street", 'Medium Street'));
         await sink.add(Event('joe', "address/street_number", 12));
 
+        await sink.close();
         source = await testSubject.createEventSource(sink);
       });
 
@@ -126,11 +127,11 @@ void main() {
     });
 
     group('$testSubject with time-spaced events', () {
-      EventSink sink;
+      EventorySink sink;
       EventSource source;
 
       setUp(() async {
-        sink = testSubject.createEventSink() as EventSink;
+        sink = testSubject.createEventSink();
 
         // given some events
         await sink.add(
@@ -155,6 +156,7 @@ void main() {
         await sink.add(Event('brazil', "languages", {'portuguese'},
             DateTime.parse('1500-01-01')));
 
+        await sink.close();
         source = await testSubject.createEventSource(sink);
       });
 
@@ -240,9 +242,9 @@ void main() {
       });
     });
     group('$testSubject errors', () {
-      EventSink sink;
+      EventorySink sink;
       setUp(() {
-        sink = testSubject.createEventSink() as EventSink;
+        sink = testSubject.createEventSink();
       });
       test('cannot add Event after closed', () {
         sink.close();
@@ -253,18 +255,19 @@ void main() {
     });
 
     group('$testSubject history', () {
-      EventSink sink;
+      EventorySink sink;
       EventSource source;
       DateTime t1 = DateTime.parse('1970-01-01');
       DateTime t2 = t1.add(Duration(seconds: 5));
       DateTime t3 = t1.add(Duration(seconds: 15));
       setUp(() async {
-        sink = testSubject.createEventSink() as EventSink;
+        sink = testSubject.createEventSink();
 
         await sink.add(Event('joe', 'age', 33, t1));
         await sink.add(Event('joe', 'age', 34, t2));
         await sink.add(Event('mary', 'age', 39, t3));
 
+        await sink.close();
         source = await testSubject.createEventSource(sink);
       });
       test('keeps all events', () async {

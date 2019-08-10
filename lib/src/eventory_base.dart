@@ -46,7 +46,7 @@ class Event {
 /// A [Sink] of [Event]s.
 ///
 /// It is used to publish events.
-abstract class EventSink extends Sink<Event> {
+abstract class EventorySink extends Sink<Event> {
   bool _closed = false;
 
   /// Add an event to this sink.
@@ -63,6 +63,7 @@ abstract class EventSink extends Sink<Event> {
     }
   }
 
+  /// Returns true if this [EventorySink] has been closed, false otherwise.
   bool get isClosed => _closed;
 
   @protected
@@ -72,9 +73,10 @@ abstract class EventSink extends Sink<Event> {
     }
   }
 
+  /// Close this [EventorySink].
   @mustCallSuper
   @override
-  void close() {
+  FutureOr close() {
     _closed = true;
   }
 }

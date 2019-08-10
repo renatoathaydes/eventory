@@ -1,8 +1,8 @@
 import 'event_list.dart';
 import 'eventory_base.dart';
 
-/// A simple in-memory [EventSink] and [EventSource].
-class InMemoryEventSink extends EventSink with EventSource {
+/// A simple in-memory [EventorySink] and [EventSource].
+class InMemoryEventSink extends EventorySink with EventSource {
   final Map<String, EventList> _db = {};
 
   Iterable<Event> _all({DateTime from, DateTime to}) =>

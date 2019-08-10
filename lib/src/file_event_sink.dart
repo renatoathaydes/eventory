@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,45 +27,60 @@ Object _customJsonEncoder(Object value) {
   return value;
 }
 
-class FileEventSink extends EventSink {
+class FileEventSink extends EventorySink {
   final File file;
   final EventValueEncoder encodeValue;
+  final IOSink _ioSink;
 
-  FileEventSink(this.file, {this.encodeValue = _customJsonEncoder});
+  FileEventSink(this.file,
+      {this.encodeValue = _customJsonEncoder,
+      Duration flushPeriod = const Duration(milliseconds: 350)})
+      : _ioSink = file.openWrite(mode: FileMode.append);
 
-  List _encodedList(Event event) => <Object>[
-        event.instant.toIso8601String(),
-        event.key,
-        event.attribute,
-        encodeValue(event.value)
-      ];
+  void _write(String line) {
+    _ioSink.write(line);
+  }
 
-  String _removeEndChars(String s) => s.substring(1, s.length - 1);
-
-  Future<void> _writeln(String line) async {
-    await file.writeAsString("$line\n", mode: FileMode.append, flush: false);
+  String _serializeEvent(Event event) {
+    return '"${event.instant.toIso8601String()}",'
+        '"${event.key}",'
+        '"${event.attribute}",'
+        '${jsonEncode(encodeValue(event.value))}';
   }
 
   @override
-  Future<void> add(Event event) async {
+  void add(Event event) {
     assertNotClosed();
-    final json = jsonEncode(_encodedList(event));
-    // persist single Event by removing the '[' and ']' from the JSON String
-    // as that is reserved for batched Events.
-    await _writeln(_removeEndChars(json));
+    _write("${_serializeEvent(event)}\n");
   }
 
   @override
-  Future<void> addBatch(Iterable<Event> events) async {
+  void addBatch(Iterable<Event> events) {
     assertNotClosed();
     if (events.isEmpty) return;
     // persist batched Events as a single JSON List where each 4 elements form
     // a single Event.
-    final json = jsonEncode(events
-        .map(_encodedList)
-        .expand<Object>(_identity)
-        .toList(growable: false));
-    await _writeln(json);
+    final buffer = StringBuffer('[');
+    buffer.write(_serializeEvent(events.first));
+    for (final event in events.skip(1)) {
+      buffer.write(',');
+      buffer.write(_serializeEvent(event));
+    }
+    buffer.write(']\n');
+    _write(buffer.toString());
+  }
+
+  Future<dynamic> flush() async {
+    return _ioSink.flush();
+  }
+
+  @override
+  Future<void> close() async {
+    if (!isClosed) {
+      super.close();
+      await _ioSink.flush();
+      await _ioSink.close();
+    }
   }
 }
 
