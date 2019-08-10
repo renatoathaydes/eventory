@@ -63,6 +63,7 @@ void startCliLoop(Actor<MonitorCommand, void> monitorActor) async {
   print("Events file: ${tempFile.path}");
 
   var sink = FileEventSink(tempFile);
+  var source = await FileEventSource.load(tempFile);
 
   stdout.write('> ');
   loop:
@@ -89,6 +90,19 @@ void startCliLoop(Actor<MonitorCommand, void> monitorActor) async {
       case 'close':
         await sink.close();
         break;
+      case 'reload':
+        final time = await withTimer(
+            () async => source = await FileEventSource.load(tempFile));
+        print("Loaded FileEventSource in ${time.inMilliseconds} ms.");
+        break;
+      case 'query':
+        if (args.isEmpty) {
+          print("ERROR: provide at least the entity key to query.");
+        } else {
+          final time = await withTimer(() => print(source.getEntity(args[0])));
+          print("Query took ${time.inMilliseconds} ms");
+        }
+        break;
       case 'block':
         print("Blocking until Enter is pressed");
         stdin.readLineSync();
@@ -102,10 +116,12 @@ void startCliLoop(Actor<MonitorCommand, void> monitorActor) async {
 Available commands:
   event [<key> <value>] - publish a random event with optional key-value
   print - print the event log
+  reload - reload all events from the file.
+  query <key> - query event source
   benchmark [<event_count> <await> <flush>] - run a benchmark:
-              event_count - number of events to create.
-              await       - whether to await on each event.
-              flush       - whether to flush at the end.
+              event_count - number of events to create
+              await       - whether to await on each event
+              flush       - whether to flush at the end
   flush - flush the FileEventSink
   close - close the FileEventSink
   block - block the event loop
@@ -138,22 +154,29 @@ void benchmark(FileEventSink sink, List<String> args) async {
       eventCount, (_) => Event(randomString(), 'val', randomString())).toList();
   final lastEvent = events.removeLast();
   print("Writing events...");
-  final watch = Stopwatch()..start();
-  for (var event in events) {
-    if (doAwait) {
-      await sink.add(event);
-    } else {
-      sink.add(event);
+  final time = await withTimer(() async {
+    for (var event in events) {
+      if (doAwait) {
+        await sink.add(event);
+      } else {
+        sink.add(event);
+      }
     }
-  }
-  if (!doAwait) print("Awaiting on last event...");
-  await sink.add(lastEvent);
-  if (doFlush) {
-    print("Awaiting on flush...");
-    await sink.flush();
-  }
-  watch.stop();
-  print("Wrote $eventCount events in ${watch.elapsedMilliseconds} millis.");
+    if (!doAwait) print("Awaiting on last event...");
+    await sink.add(lastEvent);
+    if (doFlush) {
+      print("Awaiting on flush...");
+      await sink.flush();
+    }
+  });
+  print("Wrote $eventCount events in ${time.inMilliseconds} millis.");
 }
 
 bool boolParse(String s) => s.toLowerCase() == 'true';
+
+Future<Duration> withTimer(FutureOr Function() callback) async {
+  final watch = Stopwatch()..start();
+  await callback();
+  watch.stop();
+  return watch.elapsed;
+}
