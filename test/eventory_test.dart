@@ -164,6 +164,10 @@ void main() {
         expect(source.getValue('brazil', "population"), equals(200e6));
         expect(
             source.getValue(
+                'brazil', "population", DateTime.parse('1970-01-01')),
+            equals(90e6));
+        expect(
+            source.getValue(
                 'brazil', "population", DateTime.parse('1970-06-01')),
             equals(90e6));
         expect(

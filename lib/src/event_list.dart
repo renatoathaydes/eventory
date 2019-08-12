@@ -39,18 +39,19 @@ class EventList {
 
   Event findEvent({String attribute, DateTime instant}) {
     instant ??= DateTime.now();
+    var at = instant;
+    var events = _events[instant];
     while (true) {
-      final at = _events.lastKeyBefore(instant);
       if (at == null) return null;
-      final events = _events[at];
-      final result = events.firstWhere((e) => e.attribute == attribute,
+      events = _events[at];
+      final result = events?.firstWhere((e) => e.attribute == attribute,
           orElse: () => null);
       if (result != null) {
         return result;
       }
 
       // continue search from the previous instant
-      instant = at;
+      at = _events.lastKeyBefore(at);
     }
   }
 }
