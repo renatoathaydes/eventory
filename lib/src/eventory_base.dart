@@ -63,6 +63,11 @@ abstract class EventorySink extends Sink<Event> {
     }
   }
 
+  /// Returns a [StreamConsumer] that consumes events into this [EventorySink].
+  StreamConsumer<Event> toStreamConsumer() {
+    return _EventoryStreamConsumer(this);
+  }
+
   /// Returns true if this [EventorySink] has been closed, false otherwise.
   bool get isClosed => _closed;
 
@@ -79,6 +84,28 @@ abstract class EventorySink extends Sink<Event> {
   FutureOr close() {
     _closed = true;
   }
+}
+
+class _EventoryStreamConsumer with StreamConsumer<Event> {
+  final EventorySink sink;
+
+  _EventoryStreamConsumer(this.sink);
+
+  Future<void> addStream(Stream<Event> stream) async {
+    final batch = <Event>[];
+    const batchSize = 1024;
+    await for (final event in stream) {
+      batch.add(event);
+      if (batch.length == batchSize) {
+        await sink.addBatch(batch);
+        batch.clear();
+      }
+    }
+    await sink.addBatch(batch);
+  }
+
+  @override
+  Future<void> close() async {}
 }
 
 /// A source of [Event]s.
