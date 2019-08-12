@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:actors/actors.dart';
 import 'package:eventory/eventory.dart';
 import 'package:eventory/src/file_event_sink.dart';
+import 'package:eventory/src/util.dart';
 
 enum MonitorCommand { start, stop, ping }
 
@@ -216,10 +217,3 @@ Future<void> writeBenchmark(FileEventSink sink, List<String> args) async {
 }
 
 bool boolParse(String s) => s.toLowerCase() == 'true';
-
-Future<Duration> withTimer(FutureOr Function() callback) async {
-  final watch = Stopwatch()..start();
-  await callback();
-  watch.stop();
-  return watch.elapsed;
-}

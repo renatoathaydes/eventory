@@ -3,20 +3,19 @@ import 'dart:io';
 
 import 'package:eventory/eventory.dart';
 import 'package:eventory/src/file_event_sink.dart';
+import 'package:eventory/src/snapshot_backed_event_source.dart';
 import 'package:test/test.dart';
 
 abstract class _TestSubject {
   EventorySink createEventSink();
 
-  FutureOr<EventSource> createEventSource(EventorySink sink);
+  FutureOr<EventSource> createEventSource(EventorySink sink) =>
+      sink as EventSource;
 }
 
 class _InMemoryTestSubject with _TestSubject {
   @override
   EventorySink createEventSink() => InMemoryEventSink();
-
-  @override
-  EventSource createEventSource(EventorySink sink) => sink as EventSource;
 
   @override
   String toString() => 'InMemoryTestSubject';
@@ -46,10 +45,22 @@ class _FileTestSubject with _TestSubject {
   String toString() => 'FileTestSubject';
 }
 
+class _SnapshotBackedTestSubject extends _TestSubject {
+  @override
+  EventorySink createEventSink() => InMemoryEventSink();
+
+  Future<EventSource> createEventSource(EventorySink sink) async =>
+      SnapshotBackedEventSource(sink as EventSource);
+
+  @override
+  String toString() => 'SnapshotBackedTestSubject';
+}
+
 void main() {
   final testSubjects = <_TestSubject>[
     _InMemoryTestSubject(),
     _FileTestSubject(),
+    _SnapshotBackedTestSubject(),
   ];
 
   for (final testSubject in testSubjects) {
@@ -95,14 +106,14 @@ void main() {
         expect(source.getValue('mary', "address/street"), equals('Low Street'));
         expect(source.getValue('mary', "address/street_number"), equals(423));
       });
-      test('can re-constitute a full entity', () {
+      test('can re-constitute a full entity', () async {
         final expectedJoe = {
           "age": 24,
           "address/street": 'Medium Street',
           "address/street_number": 12,
         };
 
-        final joe = source.getEntity('joe');
+        final joe = await source.getEntity('joe');
 
         expect(joe, equals(expectedJoe));
 
@@ -112,7 +123,7 @@ void main() {
           "address/street_number": 423,
         };
 
-        final mary = source.getEntity('mary');
+        final mary = await source.getEntity('mary');
 
         expect(mary, equals(expectedMary));
 
@@ -120,7 +131,7 @@ void main() {
           "age": 53,
         };
 
-        final adam = source.getEntity('adam');
+        final adam = await source.getEntity('adam');
 
         expect(adam, equals(expectedAdam));
       });
@@ -197,7 +208,8 @@ void main() {
         expect(source.getValue('sweden', "xxx/yyy"), isNull);
       });
 
-      test('can re-constitute a full entity at different points in time', () {
+      test('can re-constitute a full entity at different points in time',
+          () async {
         final expectedBrazilIn1200 = <String, dynamic>{};
 
         final expectedBrazilIn1971 = {
@@ -220,27 +232,27 @@ void main() {
         };
 
         final brazilIn1200 =
-            source.getEntity('brazil', DateTime.parse('1200-01-01'));
+            await source.getEntity('brazil', DateTime.parse('1200-01-01'));
 
         expect(brazilIn1200, equals(expectedBrazilIn1200));
 
         final brazilIn1971 =
-            source.getEntity('brazil', DateTime.parse('1971-01-01'));
+            await source.getEntity('brazil', DateTime.parse('1971-01-01'));
 
         expect(brazilIn1971, equals(expectedBrazilIn1971));
 
         final brazilIn2020 =
-            source.getEntity('brazil', DateTime.parse('2020-01-01'));
+            await source.getEntity('brazil', DateTime.parse('2020-01-01'));
 
         expect(brazilIn2020, equals(expectedBrazilIn2020));
 
         final swedenIn2020 =
-            source.getEntity('sweden', DateTime.parse('2020-01-01'));
+            await source.getEntity('sweden', DateTime.parse('2020-01-01'));
 
         expect(swedenIn2020, equals(expectedSwedenIn2020));
 
         final swedenIn1200 =
-            source.getEntity('sweden', DateTime.parse('1200-01-01'));
+            await source.getEntity('sweden', DateTime.parse('1200-01-01'));
 
         expect(swedenIn1200, equals(expectedSwedenIn1200));
       });
