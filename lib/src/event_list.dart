@@ -40,10 +40,9 @@ class EventList {
   Event findEvent({String attribute, DateTime instant}) {
     instant ??= DateTime.now();
     var at = instant;
-    var events = _events[instant];
     while (true) {
       if (at == null) return null;
-      events = _events[at];
+      final events = _events[at];
       final result = events?.firstWhere((e) => e.attribute == attribute,
           orElse: () => null);
       if (result != null) {
