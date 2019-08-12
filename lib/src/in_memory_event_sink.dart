@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:eventory/src/util.dart';
+
 import 'event_list.dart';
 import 'eventory_base.dart';
 
@@ -88,6 +92,18 @@ class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
 
   InMemoryEntitiesSnapshot(this.instant, [this._entities = const {}]);
 
+  Map<String, Map<String, dynamic>> _copy(
+      EntitiesSnapshot snapshot, Map<String, Map<String, dynamic>> into) {
+    if (snapshot is InMemoryEntitiesSnapshot) {
+      into.addAll(snapshot._entities);
+    } else {
+      snapshot.keys.forEach((key) {
+        into[key] = snapshot[key];
+      });
+    }
+    return into;
+  }
+
   @override
   Set<String> get keys => _entities.keys.toSet();
 
@@ -95,4 +111,10 @@ class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
 
   @override
   Map<String, dynamic> operator [](String key) => _entities[key];
+
+  @override
+  InMemoryEntitiesSnapshot operator +(EntitiesSnapshot other) {
+    return InMemoryEntitiesSnapshot(mostRecentOf(instant, other.instant),
+        _copy(other, {}..addAll(_entities)));
+  }
 }

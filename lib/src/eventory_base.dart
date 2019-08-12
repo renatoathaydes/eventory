@@ -185,4 +185,8 @@ mixin EntitiesSnapshot {
   ///
   /// Returns an empty [Map] if nothing is known about an entity with the given key.
   Map<String, dynamic> operator [](String key);
+
+  /// Returns a new [EntitiesSnapshot] instance that includes both the state
+  /// of this instance and that of the other instance.
+  FutureOr<EntitiesSnapshot> operator +(EntitiesSnapshot other);
 }
