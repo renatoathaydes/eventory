@@ -108,8 +108,13 @@ void startCliLoop(Actor<MonitorCommand, void> monitorActor) async {
         stdin.readLineSync();
         print("Unblocked.");
         break;
-      case 'benchmark':
-        await benchmark(sink, args);
+      case 'rb':
+      case 'read-benchmark':
+        await readBenchmark(source);
+        break;
+      case 'wb':
+      case 'write-benchmark':
+        await writeBenchmark(sink, args);
         break;
       case 'help':
         print('''
@@ -118,7 +123,8 @@ Available commands:
   print - print the event log
   reload - reload all events from the file.
   query <key> - query event source
-  benchmark [<event_count> <await> <flush>] - run a benchmark:
+  read-benchmark (rb) - run a read benchmark
+  write-benchmark (wb) [<event_count> <await> <flush>] - run a write benchmark:
               event_count - number of events to create
               await       - whether to await on each event
               flush       - whether to flush at the end
@@ -144,7 +150,44 @@ String randomString() => Iterable.generate(
         rand.nextInt(30) + 2, (c) => String.fromCharCode(rand.nextInt(25) + 65))
     .join();
 
-void benchmark(FileEventSink sink, List<String> args) async {
+Future<void> readBenchmark(EventSource source) async {
+  Event first, last;
+  int count = 0;
+
+  await for (var event in source.allEvents) {
+    if (first == null) {
+      first = event;
+    }
+    last = event;
+    count++;
+  }
+  if (count < 2) {
+    print("ERROR: Not enough events to benchmark");
+    return;
+  }
+  var firstValue, lastValue;
+  final firstValTime = await withTimer(() {
+    firstValue = source.getValue(first.key, first.attribute, first.instant);
+  });
+  final lastValTime = await withTimer(() {
+    lastValue = source.getValue(last.key, last.attribute, last.instant);
+  });
+  print("Total events: ${count}.");
+  print("Time to get first value: ${firstValTime.inMicroseconds}e-6 seconds.");
+  print("Time to get last value: ${lastValTime.inMicroseconds}e-6 seconds.");
+  if (firstValue != first.value) {
+    print("ERROR: First value was not correct:"
+        "\nActual: ${firstValue}"
+        "\nExpected: ${first.value}");
+  }
+  if (lastValue != last.value) {
+    print("ERROR: Last value was not correct:"
+        "\nActual: ${lastValue}"
+        "\nExpected: ${last.value}");
+  }
+}
+
+Future<void> writeBenchmark(FileEventSink sink, List<String> args) async {
   final eventCount = args.isEmpty ? 1000 : int.parse(args[0]);
   final doAwait = args.length <= 1 ? false : boolParse(args[1]);
   final doFlush = args.length <= 2 ? false : boolParse(args[2]);
