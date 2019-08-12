@@ -10,7 +10,7 @@ import 'eventory_base.dart';
 /// implementations instead of this one directly, as they might offer trade-offs
 /// that are more appropriate for the intended usage, such as caching for fast
 /// queries (at the cost of memory).
-class InMemoryEventSink extends EventorySink with EventSource {
+class InMemoryEventSink extends EventorySink with LiveEventSource {
   final Map<String, EventList> _db = {};
 
   Stream<Event> _all({DateTime from, DateTime to}) async* {
@@ -78,14 +78,15 @@ class InMemoryEventSink extends EventorySink with EventSource {
         result[key] = entity;
       }
     }
-    return InMemoryEntitiesSnapshot(result);
+    return InMemoryEntitiesSnapshot(instant, result);
   }
 }
 
 class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
   final Map<String, Map<String, dynamic>> _entities;
+  final DateTime instant;
 
-  InMemoryEntitiesSnapshot(this._entities);
+  InMemoryEntitiesSnapshot(this.instant, [this._entities = const {}]);
 
   @override
   Set<String> get keys => _entities.keys.toSet();

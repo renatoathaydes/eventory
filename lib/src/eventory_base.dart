@@ -156,6 +156,13 @@ mixin EventSource {
   FutureOr<EventSource> partial({DateTime from, DateTime to});
 }
 
+/// An [EventorySink] which is also an [EventSource].
+///
+/// Mutable [EventSource] implementations normally extend this class, as they
+/// are "live" in the sense that they accept new events at the same time as
+/// they allow queries.
+mixin LiveEventSource implements EventorySink, EventSource {}
+
 /// A snapshot of all entities within an [EventSource] at a certain instant.
 ///
 /// Snapshots provide all the information contained in an [EventSource] at
@@ -164,7 +171,18 @@ mixin EventSource {
 /// format than a full [EventSource], and be more efficient at querying
 /// information when only data at a certain instant matters.
 mixin EntitiesSnapshot {
-  /// The keys of all entities in this sna>pshot.
+  /// The instant this [EntitiesSnapshot] was taken.
+  ///
+  /// It should be assumed that a snapshot reflects the state of all entities
+  /// within an [EventSource] accurately at this instant. However, new events
+  /// that become known only after a snapshot is taken may have an instant
+  /// that should have made them part of the snapshot. To avoid this situation,
+  /// snapshots should only be taken from a moment in time that is at least
+  /// a few seconds in the past, so that no new events with an instant that far
+  /// in the past could be accepted by an [EventorySink].
+  DateTime get instant;
+
+  /// The keys of all entities in this snapshot.
   Set<String> get keys;
 
   /// The number of entities in this snapshot.
