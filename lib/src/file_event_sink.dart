@@ -32,9 +32,7 @@ class FileEventSink extends EventorySink {
   final EventValueEncoder encodeValue;
   final IOSink _ioSink;
 
-  FileEventSink(this.file,
-      {this.encodeValue = _customJsonEncoder,
-      Duration flushPeriod = const Duration(milliseconds: 350)})
+  FileEventSink(this.file, {this.encodeValue = _customJsonEncoder})
       : _ioSink = file.openWrite(mode: FileMode.append);
 
   void _write(String line) {
