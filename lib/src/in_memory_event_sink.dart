@@ -10,7 +10,7 @@ import 'eventory_base.dart';
 /// implementations instead of this one directly, as they might offer trade-offs
 /// that are more appropriate for the intended usage, such as caching for fast
 /// queries (at the cost of memory).
-class InMemoryEventSink extends EventorySink with LiveEventSource {
+class InMemoryEventSink extends EventorySink with EventSource {
   final Map<String, EventList> _db = {};
 
   Stream<Event> _all({DateTime from, DateTime to}) async* {

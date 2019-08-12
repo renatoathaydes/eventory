@@ -156,13 +156,6 @@ mixin EventSource {
   FutureOr<EventSource> partial({DateTime from, DateTime to});
 }
 
-/// An [EventorySink] which is also an [EventSource].
-///
-/// Mutable [EventSource] implementations normally extend this class, as they
-/// are "live" in the sense that they accept new events at the same time as
-/// they allow queries.
-mixin LiveEventSource implements EventorySink, EventSource {}
-
 /// A snapshot of all entities within an [EventSource] at a certain instant.
 ///
 /// Snapshots provide all the information contained in an [EventSource] at
