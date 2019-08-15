@@ -49,8 +49,9 @@ class _SnapshotBackedTestSubject extends _TestSubject {
   @override
   EventorySink createEventSink() => InMemoryEventSink();
 
-  Future<EventSource> createEventSource(EventorySink sink) async =>
-      SnapshotBackedEventSource(sink as EventSource);
+  Future<EventSource> createEventSource(EventorySink sink) =>
+      SnapshotBackedEventSource.load((sink as EventSource).allEvents,
+          eventsPerSnapshot: 4);
 
   @override
   String toString() => 'SnapshotBackedTestSubject';

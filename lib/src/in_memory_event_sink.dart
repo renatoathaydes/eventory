@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
+import 'package:eventory/src/snapshot_map.dart';
 import 'package:eventory/src/util.dart';
 
 import 'event_list.dart';
@@ -17,8 +19,13 @@ import 'eventory_base.dart';
 class InMemoryEventSink extends EventorySink with EventSource {
   final Map<String, EventList> _db = {};
 
-  Stream<Event> _all({DateTime from, DateTime to}) async* {
-    final all = _db.values.expand((e) => e.partial(from: from, to: to));
+  // FIXME must return events in order by instant
+  Stream<Event> _all({Set<String> keys, DateTime from, DateTime to}) async* {
+    var all = _db.values.expand((e) => e.partial(from: from, to: to));
+    if (keys?.isNotEmpty ?? false) {
+      // TODO may be faster to only go through the entries for the keys
+      all = all.where((e) => keys.contains(e.key));
+    }
     for (var event in all) {
       yield event;
     }
@@ -44,7 +51,7 @@ class InMemoryEventSink extends EventorySink with EventSource {
   }
 
   @override
-  Map<String, dynamic> getEntity(String key, [DateTime instant]) {
+  Future<Map<String, dynamic>> getEntity(String key, [DateTime instant]) async {
     instant ??= DateTime.now();
     final result = Map<String, dynamic>();
     final events =
@@ -58,17 +65,12 @@ class InMemoryEventSink extends EventorySink with EventSource {
   Stream<Event> get allEvents => _all();
 
   @override
-  Future<EventSource> partial({DateTime from, DateTime to}) async {
+  Future<EventSource> partial(
+      {Set<String> keys = const {}, DateTime from, DateTime to}) async {
     final result = InMemoryEventSink();
-    final batch = <Event>[];
-    await for (var event in _all(from: from, to: to)) {
-      batch.add(event);
-      if (batch.length == 100) {
-        result.addBatch(batch);
-        batch.clear();
-      }
+    await for (var event in _all(keys: keys, from: from, to: to)) {
+      result.add(event);
     }
-    result.addBatch(batch);
     return result;
   }
 
@@ -82,17 +84,27 @@ class InMemoryEventSink extends EventorySink with EventSource {
         result[key] = entity;
       }
     }
-    return InMemoryEntitiesSnapshot(instant, result);
+    return InMemoryEntitiesSnapshot(instant, UnmodifiableMapView(result));
   }
 }
 
 class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
-  final Map<String, Map<String, dynamic>> _entities;
+  final UnmodifiableMapView<String, Map<String, dynamic>> _entities;
   final DateTime instant;
 
-  InMemoryEntitiesSnapshot(this.instant, [this._entities = const {}]);
+  InMemoryEntitiesSnapshot(
+      this.instant, UnmodifiableMapView<String, Map<String, dynamic>> entities)
+      : _entities = entities;
 
-  Map<String, Map<String, dynamic>> _copy(
+  InMemoryEntitiesSnapshot.fromEvents(List<Event> events,
+      [InMemoryEntitiesSnapshot previousSnapshot])
+      : this(events.last.instant, _entitiesIn(events, previousSnapshot));
+
+  static Map<String, dynamic> _combineEntities(
+          Map<String, dynamic> top, Map<String, dynamic> bottom) =>
+      CombinedMapView([top, bottom]);
+
+  static UnmodifiableMapView<String, Map<String, dynamic>> _copy(
       EntitiesSnapshot snapshot, Map<String, Map<String, dynamic>> into) {
     if (snapshot is InMemoryEntitiesSnapshot) {
       into.addAll(snapshot._entities);
@@ -101,7 +113,24 @@ class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
         into[key] = snapshot[key];
       });
     }
-    return into;
+    return UnmodifiableMapView(into);
+  }
+
+  static UnmodifiableMapView<String, Map<String, dynamic>> _entitiesIn(
+      List<Event> events, InMemoryEntitiesSnapshot previousSnapshot) {
+    final result = <String, Map<String, dynamic>>{};
+    for (final event in events) {
+      result.putIfAbsent(event.key, () => {})[event.attribute] = event.value;
+    }
+    if (previousSnapshot == null) {
+      return UnmodifiableMapView(result);
+    } else {
+      return SnapshotMap(
+        result,
+        previousSnapshot._entities,
+        _combineEntities,
+      ).view;
+    }
   }
 
   @override
@@ -110,7 +139,7 @@ class InMemoryEntitiesSnapshot implements EntitiesSnapshot {
   int get length => _entities.length;
 
   @override
-  Map<String, dynamic> operator [](String key) => _entities[key];
+  Map<String, dynamic> operator [](String key) => _entities[key] ?? const {};
 
   @override
   InMemoryEntitiesSnapshot operator +(EntitiesSnapshot other) {

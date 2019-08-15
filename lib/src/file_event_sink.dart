@@ -170,7 +170,7 @@ class FileEventSource with EventSource {
   }
 
   @override
-  Map<String, dynamic> getEntity(String key, [DateTime instant]) {
+  Future<Map<String, dynamic>> getEntity(String key, [DateTime instant]) {
     return _delegate.getEntity(key, instant);
   }
 
@@ -188,7 +188,7 @@ class FileEventSource with EventSource {
   }
 
   @override
-  Future<EventSource> partial({DateTime from, DateTime to}) {
-    return _delegate.partial(from: from, to: to);
+  Future<EventSource> partial({Set<String> keys, DateTime from, DateTime to}) {
+    return _delegate.partial(keys: keys, from: from, to: to);
   }
 }

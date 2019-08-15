@@ -151,9 +151,12 @@ mixin EventSource {
   /// Get a partial view of this [EventSource] containing all [Event]s within
   /// the time window given by the [from] and [to] instants.
   ///
+  /// Optionally provide a Set of [keys], so that only events affecting entities
+  /// with those keys are included ([keys] is ignored if empty or null).
+  ///
   /// If [from] or [to] are not provided, the partial's time window is unbounded
   /// at the early or late edge, respectively.
-  FutureOr<EventSource> partial({DateTime from, DateTime to});
+  FutureOr<EventSource> partial({Set<String> keys, DateTime from, DateTime to});
 }
 
 /// A snapshot of all entities within an [EventSource] at a certain instant.

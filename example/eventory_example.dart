@@ -47,7 +47,7 @@ void main(List<String> args) async {
   final source = await FileEventSource.load(tempFile);
 
   for (var i = 0; i < eventsPerCycle; i++) {
-    final entity = source.getEntity(i.toString());
+    final entity = await source.getEntity(i.toString());
     if (entity['value'] != i) {
       throw Exception("Error, expected entity with value $i, got $entity");
     }
