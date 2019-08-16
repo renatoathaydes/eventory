@@ -43,7 +43,8 @@ class EventList {
     while (true) {
       if (at == null) return null;
       final events = _events[at];
-      final result = events?.firstWhere((e) => e.attribute == attribute,
+      final result = events?.lastWhere(
+          (e) => attribute == null || e.attribute == attribute,
           orElse: () => null);
       if (result != null) {
         return result;

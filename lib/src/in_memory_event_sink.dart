@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:collection/collection.dart';
 import 'package:eventory/src/snapshot_map.dart';
@@ -17,24 +18,14 @@ import 'eventory_base.dart';
 /// that are more appropriate for the intended usage, such as caching for fast
 /// queries (at the cost of memory).
 class InMemoryEventSink extends EventorySink with EventSource {
-  final Map<String, EventList> _db = {};
-
-  // FIXME must return events in order by instant
-  Stream<Event> _all({Set<String> keys, DateTime from, DateTime to}) async* {
-    var all = _db.values.expand((e) => e.partial(from: from, to: to));
-    if (keys?.isNotEmpty ?? false) {
-      // TODO may be faster to only go through the entries for the keys
-      all = all.where((e) => keys.contains(e.key));
-    }
-    for (var event in all) {
-      yield event;
-    }
-  }
+  final _db = <String, EventList>{};
+  final _events = EventList();
 
   @override
   void add(Event event) {
     assertNotClosed();
     _db.putIfAbsent(event.key, () => EventList()).add(event);
+    _events.add(event);
   }
 
   @override
@@ -42,6 +33,7 @@ class InMemoryEventSink extends EventorySink with EventSource {
     assertNotClosed();
     for (var event in events) {
       _db.putIfAbsent(event.key, () => EventList()).add(event);
+      _events.add(event);
     }
   }
 
@@ -53,25 +45,26 @@ class InMemoryEventSink extends EventorySink with EventSource {
   @override
   Future<Map<String, dynamic>> getEntity(String key, [DateTime instant]) async {
     instant ??= DateTime.now();
+    final events = _db[key]?.partial(to: instant) ?? const [];
     final result = Map<String, dynamic>();
-    final events =
-        _db[key]?.all?.takeWhile((event) => event.instant.isBefore(instant)) ??
-            const [];
     events.forEach((event) => result[event.attribute] = event.value);
     return result;
   }
 
   @override
-  Stream<Event> get allEvents => _all();
+  Stream<Event> get allEvents => Stream.fromIterable(_events.all);
 
   @override
   Future<EventSource> partial(
       {Set<String> keys = const {}, DateTime from, DateTime to}) async {
-    final result = InMemoryEventSink();
-    await for (var event in _all(keys: keys, from: from, to: to)) {
-      result.add(event);
+    Iterable<Event> events;
+    if (keys?.isNotEmpty ?? false) {
+      events =
+          keys.map((k) => _db[k]).expand((e) => e.partial(from: from, to: to));
+    } else {
+      events = _events.partial(from: from, to: to);
     }
-    return result;
+    return InMemoryEventSink()..addBatch(events);
   }
 
   @override
