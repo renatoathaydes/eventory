@@ -70,13 +70,16 @@ class SnapshotBackedEventSource with EventSource {
   }
 
   @override
-  FutureOr getValue(String key, String attribute, [DateTime instant]) {
+  FutureOr getValue(String key, String attribute, [DateTime instant]) async {
     instant ??= DateTime.now();
     final latestSnapshot = _latestSnapshotAt(instant);
     if (latestSnapshot != null) {
-      return (latestSnapshot[key] ?? const {})[attribute];
+      final updatesSinceSnapshot =
+          await partial(keys: {key}, from: latestSnapshot.instant, to: instant);
+      return await updatesSinceSnapshot.getValue(key, attribute, instant) ??
+          (latestSnapshot[key] ?? const {})[attribute];
     } else {
-      return _delegate.getValue(key, attribute, instant);
+      return await _delegate.getValue(key, attribute, instant);
     }
   }
 

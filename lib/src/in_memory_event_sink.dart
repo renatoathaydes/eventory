@@ -59,8 +59,10 @@ class InMemoryEventSink extends EventorySink with EventSource {
       {Set<String> keys = const {}, DateTime from, DateTime to}) async {
     Iterable<Event> events;
     if (keys?.isNotEmpty ?? false) {
-      events =
-          keys.map((k) => _db[k]).expand((e) => e.partial(from: from, to: to));
+      events = keys
+          .map((k) => _db[k])
+          .where((e) => e != null)
+          .expand((e) => e.partial(from: from, to: to));
     } else {
       events = _events.partial(from: from, to: to);
     }

@@ -89,23 +89,26 @@ void main() {
         source = await testSubject.createEventSource(sink);
       });
 
-      test('can use simple event lookup', () {
-        expect(source.getValue('joe', "age"), equals(24));
-        expect(source.getValue('mary', "age"), equals(26));
-        expect(source.getValue('adam', "age"), equals(53));
+      test('can use simple event lookup', () async {
+        expect(await source.getValue('joe', "age"), equals(24));
+        expect(await source.getValue('mary', "age"), equals(26));
+        expect(await source.getValue('adam', "age"), equals(53));
 
-        expect(source.getValue('joe', "number"), isNull);
-        expect(source.getValue('joe', "address"), isNull);
-        expect(source.getValue('other', "age"), isNull);
-        expect(source.getValue('other', "xxx"), isNull);
+        expect(await source.getValue('joe', "number"), isNull);
+        expect(await source.getValue('joe', "address"), isNull);
+        expect(await source.getValue('other', "age"), isNull);
+        expect(await source.getValue('other', "xxx"), isNull);
       });
 
-      test('can see updates in event lookup', () {
+      test('can see updates in event lookup', () async {
+        expect(await source.getValue('joe', "address/street"),
+            equals('Medium Street'));
         expect(
-            source.getValue('joe', "address/street"), equals('Medium Street'));
-        expect(source.getValue('joe', "address/street_number"), equals(12));
-        expect(source.getValue('mary', "address/street"), equals('Low Street'));
-        expect(source.getValue('mary', "address/street_number"), equals(423));
+            await source.getValue('joe', "address/street_number"), equals(12));
+        expect(await source.getValue('mary', "address/street"),
+            equals('Low Street'));
+        expect(await source.getValue('mary', "address/street_number"),
+            equals(423));
       });
       test('can re-constitute a full entity', () async {
         final expectedJoe = {
@@ -172,41 +175,41 @@ void main() {
         source = await testSubject.createEventSource(sink);
       });
 
-      test('can use simple event lookup at different points in time', () {
-        expect(source.getValue('brazil', "population"), equals(200e6));
+      test('can use simple event lookup at different points in time', () async {
+        expect(await source.getValue('brazil', "population"), equals(200e6));
         expect(
-            source.getValue(
+            await source.getValue(
                 'brazil', "population", DateTime.parse('1970-01-01')),
             equals(90e6));
         expect(
-            source.getValue(
+            await source.getValue(
                 'brazil', "population", DateTime.parse('1970-06-01')),
             equals(90e6));
         expect(
-            source.getValue(
+            await source.getValue(
                 'brazil', "population", DateTime.parse('1990-06-01')),
             equals(100e6));
         expect(
-            source.getValue(
+            await source.getValue(
                 'brazil', "population", DateTime.parse('1990-06-05')),
             equals(150e6));
         expect(
-            source.getValue(
+            await source.getValue(
                 'sweden', "population", DateTime.parse('1960-01-01')),
             equals(7e6));
 
         expect(
-            source.getValue(
+            await source.getValue(
                 'brazil', "population", DateTime.parse('1930-01-01')),
             isNull);
         expect(
-            source.getValue(
+            await source.getValue(
                 'sweden', "population", DateTime.parse('1930-01-01')),
             isNull);
-        expect(source.getValue('brazil', "number"), isNull);
-        expect(source.getValue('sweden', "address"), isNull);
-        expect(source.getValue('australia', "population"), isNull);
-        expect(source.getValue('sweden', "xxx/yyy"), isNull);
+        expect(await source.getValue('brazil', "number"), isNull);
+        expect(await source.getValue('sweden', "address"), isNull);
+        expect(await source.getValue('australia', "population"), isNull);
+        expect(await source.getValue('sweden', "xxx/yyy"), isNull);
       });
 
       test('can re-constitute a full entity at different points in time',
