@@ -2,7 +2,7 @@ name: eventory
 description: An event sourcing-inspired library targeting offline-first use, with automatic synchronization with remote
   instances when connection is available.
 
-version: 0.0.0
+version: 0.1.0
 homepage: https://github.com/renatoathaydes/eventory
 author: renato <renato@athaydes.com>
 
