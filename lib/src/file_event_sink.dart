@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:eventory/eventory.dart';
+import 'package:synchronized/synchronized.dart';
 
 /// A Function that encodes an [Event]'s value to an [Object] which can be
 /// persisted with [jsonEncode].
@@ -31,12 +32,13 @@ class FileEventSink extends EventorySink {
   final File file;
   final EventValueEncoder encodeValue;
   final IOSink _ioSink;
+  final Lock _flushLock = Lock();
 
   FileEventSink(this.file, {this.encodeValue = _customJsonEncoder})
       : _ioSink = file.openWrite(mode: FileMode.append);
 
   void _write(String line) {
-    _ioSink.write(line);
+    _flushLock.synchronized(() => _ioSink.write(line));
   }
 
   String _serializeEvent(Event event) {
@@ -68,8 +70,8 @@ class FileEventSink extends EventorySink {
     _write(buffer.toString());
   }
 
-  Future<dynamic> flush() async {
-    return _ioSink.flush();
+  Future<dynamic> flush() {
+    return _flushLock.synchronized(() async => await _ioSink.flush());
   }
 
   @override
@@ -82,8 +84,9 @@ class FileEventSink extends EventorySink {
   }
 
   @override
-  Future<FileEventSource> toEventSource() {
-    return FileEventSource.load(file);
+  Future<FileEventSource> toEventSource() async {
+    await flush();
+    return await FileEventSource.load(file);
   }
 }
 

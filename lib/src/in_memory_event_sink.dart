@@ -20,8 +20,6 @@ import 'eventory_base.dart';
 class InMemoryEventSink extends EventorySink {
   final _events = DoubleLinkedQueue<Event>();
 
-//  final List<DoubleLinkedQueue<Event>>
-
   @override
   void add(Event event) {
     assertNotClosed();
@@ -38,7 +36,6 @@ class InMemoryEventSink extends EventorySink {
 
   @override
   Future<InMemoryEventSource> toEventSource() async {
-    // TODO ensure concurrent modification of the _events list does not break this method
     return InMemoryEventSource.from(Stream.fromIterable(_events));
   }
 }

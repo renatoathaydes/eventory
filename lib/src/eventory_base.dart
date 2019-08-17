@@ -126,6 +126,8 @@ class _EventoryStreamConsumer with StreamConsumer<Event> {
 mixin EventSource {
   /// All [Event]s known to this [EventSource] at the time this property
   /// is accessed.
+  ///
+  /// The events are ordered by the instant they were created.
   Stream<Event> get allEvents;
 
   /// Gets a snapshot of the state of the entities in this [EventSource] at

@@ -339,5 +339,49 @@ void main() {
         expect(snapshot.length, equals(2));
       });
     });
+
+    group('$testSubject concurrency', () {
+      EventorySink sink;
+      EventSource source;
+      setUp(() {
+        sink = testSubject.createEventSink();
+      });
+      tearDown(() async {
+        await sink.close();
+      });
+      test(
+          'creation of EventSource from a sink while it keeps receiving events',
+          () async {
+        await sink.add(Event('a', 'b', 1));
+        await sink.add(Event('a', 'b', 2));
+        await sink.add(Event('b', 'a', 3));
+        await sink.add(Event('b', 'c', 4));
+        await sink.add(Event('b', 'd', 5));
+
+        final futureSource = sink.toEventSource();
+
+        await sink.add(Event('c', 'd', 6));
+        await sink.add(Event('d', 'e', 7));
+        await sink.add(Event('e', 'f', 8));
+
+        source = await futureSource;
+
+        final allEvents = await source.allEvents.toList();
+
+        // only events up to the time we called toEventSource() must be included
+        expect(allEvents, hasLength(greaterThanOrEqualTo(5)));
+        expect(allEvents, hasLength(lessThan(9)));
+
+        expect(allEvents[0].value, equals(1));
+        expect(allEvents[1].value, equals(2));
+        expect(allEvents[2].value, equals(3));
+        expect(allEvents[3].value, equals(4));
+        expect(allEvents[4].value, equals(5));
+
+        if (allEvents.length > 5) expect(allEvents[5].value, equals(6));
+        if (allEvents.length > 6) expect(allEvents[6].value, equals(7));
+        if (allEvents.length > 7) expect(allEvents[7].value, equals(8));
+      });
+    });
   }
 }
