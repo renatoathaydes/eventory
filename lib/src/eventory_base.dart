@@ -4,6 +4,27 @@ import 'package:meta/meta.dart';
 
 import 'errors.dart';
 
+/// A simple mixin to help implement closable resources.
+mixin Closable {
+  bool _closed = false;
+
+  /// Returns true if this [Closable] has been closed, false otherwise.
+  bool get isClosed => _closed;
+
+  /// Throws [ClosedException] if this [Closable] is closed.
+  void assertNotClosed() {
+    if (isClosed) {
+      throw const ClosedException();
+    }
+  }
+
+  /// Close this [Closable].
+  @mustCallSuper
+  FutureOr close() {
+    _closed = true;
+  }
+}
+
 /// Event is the most basic element of knowledge about a certain domain which
 /// allows the state of the system to be constructed over time.
 @immutable
@@ -46,9 +67,7 @@ class Event {
 /// A [Sink] of [Event]s.
 ///
 /// It is used to publish events.
-abstract class EventorySink extends Sink<Event> {
-  bool _closed = false;
-
+abstract class EventorySink extends Sink<Event> with Closable {
   /// Add an event to this sink.
   ///
   /// Returns a [FutureOr] to allow for possibly async ack on writes.
@@ -74,23 +93,6 @@ abstract class EventorySink extends Sink<Event> {
   /// included in the returned source, but events being added as the
   /// [EventSource] is being built might not be included.
   Future<EventSource> toEventSource();
-
-  /// Returns true if this [EventorySink] has been closed, false otherwise.
-  bool get isClosed => _closed;
-
-  @protected
-  void assertNotClosed() {
-    if (isClosed) {
-      throw const ClosedException();
-    }
-  }
-
-  /// Close this [EventorySink].
-  @mustCallSuper
-  @override
-  FutureOr close() {
-    _closed = true;
-  }
 }
 
 class _EventoryStreamConsumer with StreamConsumer<Event> {
