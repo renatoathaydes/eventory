@@ -68,6 +68,13 @@ abstract class EventorySink extends Sink<Event> {
     return _EventoryStreamConsumer(this);
   }
 
+  /// Create a new [EventSource] from the events in this [EventorySink].
+  ///
+  /// All events added up to the time when this method is called must be
+  /// included in the returned source, but events being added as the
+  /// [EventSource] is being built might not be included.
+  Future<EventSource> toEventSource();
+
   /// Returns true if this [EventorySink] has been closed, false otherwise.
   bool get isClosed => _closed;
 

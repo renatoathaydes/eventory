@@ -80,6 +80,11 @@ class FileEventSink extends EventorySink {
       await _ioSink.close();
     }
   }
+
+  @override
+  Future<FileEventSource> toEventSource() {
+    return FileEventSource.load(file);
+  }
 }
 
 /// An immutable [EventSource] obtained by loading events persisted by a
@@ -87,7 +92,7 @@ class FileEventSink extends EventorySink {
 class FileEventSource with EventSource {
   final File file;
   final EventValueDecoder decodeValue;
-  final InMemoryEventSink _delegate;
+  final InMemoryEventSource _delegate;
 
   FileEventSource._create(this.file, this.decodeValue, this._delegate);
 
@@ -96,21 +101,21 @@ class FileEventSource with EventSource {
   /// Throws a [EventDecodingException] if the contents of the file are invalid.
   static Future<FileEventSource> load(File file,
       {EventValueDecoder decodeValue = _identity}) async {
-    final instance =
-        FileEventSource._create(file, decodeValue, InMemoryEventSink());
-    await instance._load();
-    return instance;
+    return FileEventSource._create(
+        file, decodeValue, await _load(file, decodeValue));
   }
 
-  Future<void> _load() async {
-    await file
+  static Future<InMemoryEventSource> _load(
+      File file, EventValueDecoder decodeValue) async {
+    final events = await file
         .openRead()
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .forEach(_addLine);
+        .expand((line) => _parseEvents(line, decodeValue));
+    return await InMemoryEventSource.from(events);
   }
 
-  Event _decodeEventList(Iterator list) {
+  static Event _decodeEventList(Iterator list, EventValueDecoder decodeValue) {
     // Example: ["2010-02-03T00:00:00.000","hello","p1/p2",42]
     DateTime instant;
     String key;
@@ -150,19 +155,20 @@ class FileEventSource with EventSource {
     return Event(key, attribute, value, instant);
   }
 
-  void _addLine(String line) {
+  static Iterable<Event> _parseEvents(
+      String line, EventValueDecoder decodeValue) sync* {
     try {
       if (line.startsWith('[')) {
         // batched events line
         final persistedList = jsonDecode(line) as List;
         for (var i = 0; i < persistedList.length; i += 4) {
-          _delegate
-              .add(_decodeEventList(persistedList.getRange(i, i + 4).iterator));
+          yield _decodeEventList(
+              persistedList.getRange(i, i + 4).iterator, decodeValue);
         }
       } else {
         // single event line
         final persistedList = jsonDecode("[$line]") as List;
-        _delegate.add(_decodeEventList(persistedList.iterator));
+        yield _decodeEventList(persistedList.iterator, decodeValue);
       }
     } catch (e) {
       throw EventDecodingException(e);

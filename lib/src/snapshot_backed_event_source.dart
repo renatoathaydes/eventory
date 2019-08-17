@@ -8,19 +8,19 @@ import 'package:eventory/eventory.dart';
 /// delegate.
 class SnapshotBackedEventSource with EventSource {
   final List<InMemoryEntitiesSnapshot> _snapshots;
-  final InMemoryEventSink _delegate;
+  final InMemoryEventSource _delegate;
 
   SnapshotBackedEventSource._create(this._snapshots, this._delegate);
 
   static Future<SnapshotBackedEventSource> load(Stream<Event> events,
       {int eventsPerSnapshot = 1000}) async {
     final snapshots = <InMemoryEntitiesSnapshot>[];
-    final delegate = InMemoryEventSink();
+    final sink = InMemoryEventSink();
     final batch = List<Event>(eventsPerSnapshot);
     var index = 0;
     InMemoryEntitiesSnapshot snapshot;
     await events.forEach((event) {
-      delegate.add(event);
+      sink.add(event);
       batch[index] = event;
       index++;
       if (index == eventsPerSnapshot) {
@@ -33,7 +33,8 @@ class SnapshotBackedEventSource with EventSource {
       snapshots.add(InMemoryEntitiesSnapshot.fromEvents(
           batch.sublist(0, index), snapshot));
     }
-    return SnapshotBackedEventSource._create(snapshots, delegate);
+    return SnapshotBackedEventSource._create(
+        snapshots, await sink.toEventSource());
   }
 
   InMemoryEntitiesSnapshot _latestSnapshotAt(DateTime instant) =>
@@ -52,7 +53,7 @@ class SnapshotBackedEventSource with EventSource {
       return CombinedMapView([entityUpdates, entityFromSnapshot]);
     } else {
       // snapshot is not helpful here, just ask the delegate
-      return _delegate.getEntity(key, instant);
+      return await _delegate.getEntity(key, instant);
     }
   }
 
@@ -62,8 +63,7 @@ class SnapshotBackedEventSource with EventSource {
     final latestSnapshot = _latestSnapshotAt(instant);
     if (latestSnapshot != null) {
       final sinceSnapshot =
-          await partial(from: latestSnapshot.instant, to: instant)
-              as InMemoryEventSink;
+          await partial(from: latestSnapshot.instant, to: instant);
       return latestSnapshot + await sinceSnapshot.getSnapshot(instant);
     }
     return _delegate.getSnapshot(instant);

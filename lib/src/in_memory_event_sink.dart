@@ -17,14 +17,14 @@ import 'eventory_base.dart';
 /// implementations instead of this one directly, as they might offer trade-offs
 /// that are more appropriate for the intended usage, such as caching for fast
 /// queries (at the cost of memory).
-class InMemoryEventSink extends EventorySink with EventSource {
-  final _db = <String, EventList>{};
-  final _events = EventList();
+class InMemoryEventSink extends EventorySink {
+  final _events = DoubleLinkedQueue<Event>();
+
+//  final List<DoubleLinkedQueue<Event>>
 
   @override
   void add(Event event) {
     assertNotClosed();
-    _db.putIfAbsent(event.key, () => EventList()).add(event);
     _events.add(event);
   }
 
@@ -32,9 +32,31 @@ class InMemoryEventSink extends EventorySink with EventSource {
   void addBatch(Iterable<Event> events) {
     assertNotClosed();
     for (var event in events) {
-      _db.putIfAbsent(event.key, () => EventList()).add(event);
       _events.add(event);
     }
+  }
+
+  @override
+  Future<InMemoryEventSource> toEventSource() async {
+    // TODO ensure concurrent modification of the _events list does not break this method
+    return InMemoryEventSource.from(Stream.fromIterable(_events));
+  }
+}
+
+class InMemoryEventSource with EventSource {
+  final EventList _events;
+  final UnmodifiableMapView<String, EventList> _db;
+
+  InMemoryEventSource._create(this._events, this._db);
+
+  static Future<InMemoryEventSource> from(Stream<Event> events) async {
+    final eventList = EventList();
+    final db = <String, EventList>{};
+    await for (final event in events) {
+      eventList.add(event);
+      db.putIfAbsent(event.key, () => EventList()).add(event);
+    }
+    return InMemoryEventSource._create(eventList, UnmodifiableMapView(db));
   }
 
   @override
@@ -66,7 +88,7 @@ class InMemoryEventSink extends EventorySink with EventSource {
     } else {
       events = _events.partial(from: from, to: to);
     }
-    return InMemoryEventSink()..addBatch(events);
+    return InMemoryEventSource.from(Stream.fromIterable(events));
   }
 
   @override

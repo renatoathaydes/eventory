@@ -10,7 +10,7 @@ abstract class _TestSubject {
   EventorySink createEventSink();
 
   FutureOr<EventSource> createEventSource(EventorySink sink) =>
-      sink as EventSource;
+      sink.toEventSource();
 }
 
 class _InMemoryTestSubject with _TestSubject {
@@ -49,8 +49,8 @@ class _SnapshotBackedTestSubject extends _TestSubject {
   @override
   EventorySink createEventSink() => InMemoryEventSink();
 
-  Future<EventSource> createEventSource(EventorySink sink) =>
-      SnapshotBackedEventSource.load((sink as EventSource).allEvents,
+  Future<EventSource> createEventSource(EventorySink sink) async =>
+      SnapshotBackedEventSource.load((await sink.toEventSource()).allEvents,
           eventsPerSnapshot: 4);
 
   @override
